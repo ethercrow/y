@@ -3,7 +3,7 @@ module Y.Core
     ) where
 
 import Control.Concurrent
-import Control.Lens
+import Control.Lens hiding (Action)
 import Control.Monad
 import Data.Default
 import qualified FRP.Sodium as Sodium
@@ -18,37 +18,38 @@ startCore :: Keymap
     -> Sodium.Event InputOccurence
     -> MVar ()
     -> Sodium.Reactive (Sodium.Event ViewModel)
-startCore keymap input exit
-    = do
-        actionEvent <- fromKeymap keymap input
-        collectE' go (CoreState False exit def) actionEvent
-    where go (PureAction f) oldState = do
-              let newState = f oldState
-              return ( ViewModel (newState ^. buffer . text)
-                     , newState
-                     )
-          go ExitAction oldState = do
-              putMVar (oldState ^. exitMVar) ()
-              return ( ViewModel (oldState ^. buffer . text)
-                     , oldState
-                     )
-          go (ImpureAction f) oldState = do
-              newState <- f oldState
-              return ( ViewModel (newState ^. buffer . text)
-                     , newState
-                     )
-
--- collectE' :: Context r
---     => (a -> s -> IO (b, s))
---     -> s
---     -> Sodium.Event r a
---     -> Sodium.Reactive r (Sodium.Event r b)
-collectE' step initial inputEvent = do
-    (stateBeh, pushState) <- Sodium.newBehavior initial
+startCore keymap inputEvent exit = do
+    (keymapBehaviour, pushKeymap) <- Sodium.newBehaviour keymap
+    (stateBehaviour, pushState) <- Sodium.newBehavior (CoreState exit def)
     (outputEvent, pushOutput) <- Sodium.newEvent
-    Sodium.listen inputEvent $ \input -> void . forkIO $ do
-        currentState <- Sodium.sync $ Sodium.sample stateBeh
-        (output, newState) <- step input currentState
+    let actionEvent = Sodium.snapshot applyKeymap
+                                      inputEvent
+                                      keymapBehaviour
+        step (PureA f) oldState = do
+            let newState = f oldState
+            return ( ViewModel (newState ^. buffer . text)
+                   , newState
+                   )
+        step ExitA oldState = do
+            putMVar (oldState ^. exitMVar) ()
+            return ( ViewModel (oldState ^. buffer . text)
+                   , oldState
+                   )
+        step (ImpureA f) oldState = do
+            newState <- f oldState
+            return ( ViewModel (newState ^. buffer . text)
+                   , newState
+                   )
+        step (KeymapModA f) oldState = do
+            Sodium.sync $ do
+                currKeymap <- Sodium.sample keymapBehaviour
+                pushKeymap (f currKeymap)
+            return ( ViewModel (oldState ^. buffer . text)
+                   , oldState
+                   )
+    Sodium.listen actionEvent $ \action -> void . forkIO $ do
+        currentState <- Sodium.sync $ Sodium.sample stateBehaviour
+        (output, newState) <- step action currentState
         Sodium.sync $ do
             pushState newState
             pushOutput output

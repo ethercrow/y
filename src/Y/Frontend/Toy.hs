@@ -11,7 +11,7 @@ toyFrontend = Frontend makeEvent print
             (ev, push) <- Sodium.sync Sodium.newEvent
             forkIO $ do
                 putStrLn "Started frontend thread"
-                forM_ "abcdefghijk" $ \c -> do
+                forM_ "abcdefghijkzabc" $ \c -> do
                     threadDelay 300000
                     Sodium.sync $ push (KChar c)
                 Sodium.sync $ push KEsc

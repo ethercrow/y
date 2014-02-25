@@ -17,9 +17,8 @@ main = do
 
     inputEvents <- inputEvent toyFrontend
 
-    forkIO $ do
-        viewModels <- Sodium.sync (startCore toyKeymap inputEvents exitMVar)
-        void $ Sodium.sync $ Sodium.listen viewModels (render toyFrontend)
+    viewModels <- Sodium.sync (startCore toyKeymap inputEvents exitMVar)
+    void $ Sodium.sync $ Sodium.listen viewModels (render toyFrontend)
 
     putStrLn "Waiting for exit"
     void $ takeMVar exitMVar
