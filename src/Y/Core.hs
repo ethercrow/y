@@ -2,13 +2,11 @@ module Y.Core
     ( startCore
     ) where
 
-import Control.Applicative
 import Control.Concurrent
 import Control.Lens hiding (Action)
 import Control.Monad
 import Data.Default
 import qualified FRP.Sodium as Sodium
-import qualified FRP.Sodium.Internal as SodiumI (ioReactive)
 
 import Y.Buffer
 import Y.Config
@@ -49,7 +47,8 @@ startCore config inputEvent exit = do
             return ( ViewModel (oldState ^. buffer . text)
                    , oldState
                    )
-    Sodium.listen actionEvent $ \action -> void . forkIO $ do
+        step (AsyncA _a) _oldState = undefined
+    _ <- Sodium.listen actionEvent $ \action -> void . forkIO $ do
         currentState <- Sodium.sync $ Sodium.sample stateBehaviour
         (output, newState) <- step action currentState
         Sodium.sync $ do

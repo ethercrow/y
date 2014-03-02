@@ -26,7 +26,7 @@ import Control.Lens hiding (cons, snoc)
 import Data.Int
 import qualified Data.List as L
 import Data.Monoid
-import Data.String
+import Data.String hiding (lines)
 import qualified Data.Text.Lazy as TL
 
 newtype YiString = YiString { fromYiString :: TL.Text }

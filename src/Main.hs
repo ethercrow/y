@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Concurrent
+import Control.Lens
 import Control.Monad
 import qualified FRP.Sodium as Sodium
 
@@ -16,12 +17,12 @@ main = do
     exitMVar <- newEmptyMVar
     putStrLn "Started"
 
-    inputEvents <- inputEvent toyFrontend
+    inputEvents <- toyFrontend ^. feInputEvent
 
     let config = Config toyKeymap
 
     viewModels <- Sodium.sync (startCore config inputEvents exitMVar)
-    void $ Sodium.sync $ Sodium.listen viewModels (render toyFrontend)
+    void $ Sodium.sync $ Sodium.listen viewModels (toyFrontend ^. feRender)
 
     putStrLn "Waiting for exit"
     void $ takeMVar exitMVar

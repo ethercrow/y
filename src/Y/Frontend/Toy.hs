@@ -9,7 +9,7 @@ toyFrontend :: Frontend
 toyFrontend = Frontend makeEvent print
     where makeEvent = do
             (ev, push) <- Sodium.sync Sodium.newEvent
-            forkIO $ do
+            _ <- forkIO $ do
                 putStrLn "Started frontend thread"
                 forM_ "abcdefghijkzabc" $ \c -> do
                     threadDelay 300000

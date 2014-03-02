@@ -11,6 +11,7 @@ data Action
     = ImpureA (CoreState -> IO CoreState)
     | PureA (CoreState -> CoreState)
     | KeymapModA (Keymap -> Keymap)
+    | AsyncA (CoreState -> IO Action)
     | ExitA
 
 data KeymapState = KeymapState
@@ -32,7 +33,6 @@ applyKeymap i (Keymap bindings _) =
     case selectBinding i bindings of
         WholeMatch action -> action
         _ -> PureA id
-applyKeymap _ _ = PureA id
 
 fromKeymap :: Keymap
     -> Sodium.Event InputOccurence
