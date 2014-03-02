@@ -6,6 +6,7 @@ import qualified FRP.Sodium as Sodium
 
 import Y.Core
 import Y.Frontend
+import Y.Config
 
 import Y.Frontend.Toy
 import Y.Keymap.Toy
@@ -17,7 +18,9 @@ main = do
 
     inputEvents <- inputEvent toyFrontend
 
-    viewModels <- Sodium.sync (startCore toyKeymap inputEvents exitMVar)
+    let config = Config toyKeymap
+
+    viewModels <- Sodium.sync (startCore config inputEvents exitMVar)
     void $ Sodium.sync $ Sodium.listen viewModels (render toyFrontend)
 
     putStrLn "Waiting for exit"

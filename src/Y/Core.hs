@@ -2,6 +2,7 @@ module Y.Core
     ( startCore
     ) where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Lens hiding (Action)
 import Control.Monad
@@ -9,22 +10,23 @@ import Data.Default
 import qualified FRP.Sodium as Sodium
 import qualified FRP.Sodium.Internal as SodiumI (ioReactive)
 
+import Y.Buffer
+import Y.Config
 import Y.CoreState
 import Y.Frontend
 import Y.Keymap
-import Y.Buffer
 
-startCore :: Keymap
+startCore :: Config
     -> Sodium.Event InputOccurence
     -> MVar ()
     -> Sodium.Reactive (Sodium.Event ViewModel)
-startCore keymap inputEvent exit = do
-    (keymapBehaviour, pushKeymap) <- Sodium.newBehaviour keymap
+startCore config inputEvent exit = do
+    (configBehaviour, pushConfig) <- Sodium.newBehaviour config
     (stateBehaviour, pushState) <- Sodium.newBehavior (CoreState exit def)
     (outputEvent, pushOutput) <- Sodium.newEvent
-    let actionEvent = Sodium.snapshot applyKeymap
+    let actionEvent = Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
                                       inputEvent
-                                      keymapBehaviour
+                                      configBehaviour
         step (PureA f) oldState = do
             let newState = f oldState
             return ( ViewModel (newState ^. buffer . text)
@@ -42,8 +44,8 @@ startCore keymap inputEvent exit = do
                    )
         step (KeymapModA f) oldState = do
             Sodium.sync $ do
-                currKeymap <- Sodium.sample keymapBehaviour
-                pushKeymap (f currKeymap)
+                currConfig <- Sodium.sample configBehaviour
+                pushConfig (currConfig & cfgKeymap %~ f)
             return ( ViewModel (oldState ^. buffer . text)
                    , oldState
                    )
