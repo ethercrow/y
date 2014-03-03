@@ -17,7 +17,6 @@ module Y.String
     , cons, snoc
     , splitAt, splitAtLine
     , countNewLines
-
     ) where
 
 import Prelude hiding (null, length, concat, splitAt, reverse, take, drop, lines)

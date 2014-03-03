@@ -7,6 +7,7 @@ import Control.Lens hiding (Action)
 import Control.Monad
 import Data.Default
 import qualified FRP.Sodium as Sodium
+import qualified FRP.Sodium.Internal as SodiumI
 
 import Y.Buffer
 import Y.Config
@@ -22,10 +23,12 @@ startCore config inputEvent exit = do
     (configBehaviour, pushConfig) <- Sodium.newBehaviour config
     (stateBehaviour, pushState) <- Sodium.newBehavior (CoreState exit def)
     (outputEvent, pushOutput) <- Sodium.newEvent
-    let actionEvent = Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
-                                      inputEvent
-                                      configBehaviour
-        step (PureA f) oldState = do
+    (actionEvent, pushAction) <- Sodium.newEvent
+    _ <- SodiumI.listenTrans (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
+                                              inputEvent
+                                              configBehaviour)
+                             pushAction
+    let step (PureA f) oldState = do
             let newState = f oldState
             return ( ViewModel (newState ^. buffer . text)
                    , newState
@@ -47,7 +50,11 @@ startCore config inputEvent exit = do
             return ( ViewModel (oldState ^. buffer . text)
                    , oldState
                    )
-        step (AsyncA _a) _oldState = undefined
+        step (AsyncA action) oldState = do
+            _ <- forkIO $ action oldState >>= (Sodium.sync . pushAction)
+            return ( ViewModel (oldState ^. buffer . text)
+                   , oldState
+                   )
     _ <- Sodium.listen actionEvent $ \action -> void . forkIO $ do
         currentState <- Sodium.sync $ Sodium.sample stateBehaviour
         (output, newState) <- step action currentState
