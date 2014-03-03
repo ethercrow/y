@@ -22,7 +22,7 @@ data CoreOutput
     | OutputExit
 
 startCore :: Config
-    -> Sodium.Event InputOccurence
+    -> Sodium.Event InputOccurrence
     -> Sodium.Reactive (Sodium.Event CoreOutput)
 startCore config inputEvent = do
     (configBehaviour, pushConfig) <- Sodium.newBehaviour config

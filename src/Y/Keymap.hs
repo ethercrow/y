@@ -18,23 +18,23 @@ data KeymapState = KeymapState
 
 type EventString = YiString
 
-type KeymapBinding = (InputOccurence -> MatchResult Action)
+type KeymapBinding = (InputOccurrence -> MatchResult Action)
 
 data Keymap = Keymap
     { kmBindings :: [KeymapBinding]
     , kmState :: KeymapState
     }
 
-selectBinding :: InputOccurence -> [KeymapBinding] -> MatchResult Action
+selectBinding :: InputOccurrence -> [KeymapBinding] -> MatchResult Action
 selectBinding input = asum . fmap ($ input)
 
-applyKeymap :: InputOccurence -> Keymap -> Action
+applyKeymap :: InputOccurrence -> Keymap -> Action
 applyKeymap i (Keymap bindings _) =
     case selectBinding i bindings of
         WholeMatch action -> action
         _ -> PureA id
 
 fromKeymap :: Keymap
-    -> Sodium.Event InputOccurence
+    -> Sodium.Event InputOccurrence
     -> Sodium.Reactive (Sodium.Event Action)
 fromKeymap = undefined
