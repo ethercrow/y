@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 module Main where
 
 import Control.Concurrent
@@ -21,8 +23,12 @@ main = do
 
     let config = Config toyKeymap
 
-    viewModels <- Sodium.sync (startCore config inputEvents exitMVar)
-    void $ Sodium.sync $ Sodium.listen viewModels (toyFrontend ^. feRender)
+    viewModels <- Sodium.sync (startCore config inputEvents)
+    unlisten <- Sodium.sync $ Sodium.listen viewModels $ \case
+        OutputViewModel vm -> (toyFrontend ^. feRender) vm
+        OutputExit -> putMVar exitMVar ()
+        _ -> return ()
 
     putStrLn "Waiting for exit"
     void $ takeMVar exitMVar
+    unlisten
