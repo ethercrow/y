@@ -2,9 +2,7 @@
 
 module Main where
 
-import Control.Concurrent
 import Control.Lens
-import Control.Monad
 import qualified FRP.Sodium as Sodium
 
 import Y.Core
@@ -12,23 +10,21 @@ import Y.Frontend
 import Y.Config
 
 import Y.Frontend.Toy
+import Y.Frontend.Vty
+
 import Y.Keymap.Toy
 
 main :: IO ()
 main = do
-    exitMVar <- newEmptyMVar
     putStrLn "Started"
 
-    inputEvents <- toyFrontend ^. feInputEvent
+    -- fe <- startToyFrontend
+    fe <- startVtyFrontend
 
     let config = Config toyKeymap
+        inputEvent = fe ^. feInputEvent
 
-    viewModels <- Sodium.sync (startCore config inputEvents)
-    unlisten <- Sodium.sync $ Sodium.listen viewModels $ \case
-        OutputViewModel vm -> (toyFrontend ^. feRender) vm
-        OutputExit -> putMVar exitMVar ()
-        _ -> return ()
+    viewModels <- Sodium.sync (startCore config inputEvent)
 
-    putStrLn "Waiting for exit"
-    void $ takeMVar exitMVar
-    unlisten
+    putStrLn "Proceeding to frontend's main loop"
+    (fe ^. feMainLoop) viewModels

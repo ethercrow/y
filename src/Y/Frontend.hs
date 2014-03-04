@@ -5,17 +5,11 @@ module Y.Frontend where
 import Control.Lens.TH
 import qualified FRP.Sodium as Sodium
 
-import Y.String
-
-data InputOccurrence = KChar Char | KEsc
-    deriving (Show)
-
-data ViewModel = ViewModel YiString
-    deriving Show
+import Y.Common
 
 data Frontend = Frontend
-    { _feInputEvent :: IO (Sodium.Event InputOccurrence)
-    , _feRender :: ViewModel -> IO ()
+    { _feInputEvent :: Sodium.Event InputOccurrence
+    , _feMainLoop :: Sodium.Event CoreOutput -> IO ()
     }
 
 makeLenses ''Frontend

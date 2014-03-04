@@ -11,15 +11,10 @@ import qualified FRP.Sodium as Sodium
 import qualified FRP.Sodium.Internal as SodiumI
 
 import Y.Buffer
+import Y.Common
 import Y.Config
 import Y.CoreState
-import Y.Frontend
 import Y.Keymap
-
-data CoreOutput
-    = OutputViewModel ViewModel
-    | OutputNoop
-    | OutputExit
 
 startCore :: Config
     -> Sodium.Event InputOccurrence

@@ -2,8 +2,8 @@ module Y.Keymap where
 
 import Data.Foldable (asum)
 import qualified FRP.Sodium as Sodium
+import Y.Common
 import Y.CoreState
-import Y.Frontend
 import Y.String
 import Y.MatchResult
 

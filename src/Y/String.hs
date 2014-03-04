@@ -22,6 +22,7 @@ module Y.String
 import Prelude hiding (null, length, concat, splitAt, reverse, take, drop, lines)
 
 import Control.Lens hiding (cons, snoc)
+import Data.Default
 import Data.Int
 import qualified Data.List as L
 import Data.Monoid
@@ -39,6 +40,9 @@ instance Wrapped YiString where
 
 instance IsString YiString where
     fromString = YiString . TL.pack
+
+instance Default YiString where
+    def = YiString ""
 
 toString :: YiString -> String
 toString (YiString t) = TL.unpack t

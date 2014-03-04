@@ -6,8 +6,8 @@ import Control.Concurrent (threadDelay)
 import Control.Lens hiding (cons, snoc, Action)
 import Data.Char (toUpper)
 import Y.Buffer
+import Y.Common
 import Y.CoreState
-import Y.Frontend
 import Y.Keymap
 import Y.String
 import Y.MatchResult
