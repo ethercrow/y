@@ -8,8 +8,6 @@ import Y.CoreState
 import Y.String
 import Y.MatchResult
 
-import Debug.Trace
-
 data Action
     = AsyncA (CoreState -> IO Action)
     | SyncA SyncAction
@@ -48,7 +46,6 @@ selectBinding input = asum . fmap ($ input)
 
 applyKeymap :: InputOccurrence -> Keymap -> Action
 applyKeymap i (Keymap bindings _) =
-    trace (show i) $
     case selectBinding i bindings of
         WholeMatch action -> action
         _ -> SyncA (StateModA id)
