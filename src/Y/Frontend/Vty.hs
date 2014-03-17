@@ -2,44 +2,53 @@
 
 module Y.Frontend.Vty where
 
-import Control.Concurrent (forkIO, threadDelay, newEmptyMVar, putMVar, takeMVar)
+import Control.Concurrent
 import Control.Lens
-import Control.Monad (forM_, void)
+import Control.Monad (forM_, void, forever)
 import Data.Default
 import qualified FRP.Sodium as Sodium
 import qualified Graphics.Vty as Vty
+
 import Y.Common
 import Y.Frontend
-import Y.String
+import qualified Y.String as S
 
 startVtyFrontend :: IO Frontend
 startVtyFrontend = do
-    (ev, push) <- Sodium.sync Sodium.newEvent
-
+    (inputEvent, pushInput) <- Sodium.sync Sodium.newEvent
     vty <- Vty.mkVty
 
-    -- input thread
-    void . forkIO $ do
-        putStrLn "Started input thread"
-        forM_ "axbycxdyefghijkzabc" $ \c -> do
-            threadDelay 300000
-            Sodium.sync $ push (KChar c)
-        Sodium.sync $ push KEsc
+    let mainLoop outputEvent = do
+            outputMVar <- newEmptyMVar
 
-    let mainLoop vmEvent = do
-            exitMVar <- newEmptyMVar
+            unlisten <- Sodium.sync $ Sodium.listen outputEvent $ \o -> do
+                putMVar outputMVar o
 
-            void . Sodium.sync . Sodium.listen vmEvent $ \case
-                OutputViewModel (ViewModel s) -> do
-                        s & toString
-                          & Vty.string Vty.def_attr
-                          & Vty.pic_for_image
-                          & Vty.update vty
-                        Vty.refresh vty
-                OutputExit -> do
-                    putMVar exitMVar ()
-                _ -> return ()
+            void . forkIO $ do
+                putStrLn "Started input thread"
 
-            takeMVar exitMVar
+                forM_ "axbycxdyefghijkzabc" $ \c -> do
+                    Sodium.sync $ pushInput (KChar c)
+                    yield
+                    threadDelay 300000
+                Sodium.sync $ pushInput KEsc
 
-    return $! Frontend ev mainLoop
+            let loop = do
+                    output <- takeMVar outputMVar
+                    case output of
+                        OutputViewModel (ViewModel s) -> render vty s >> loop
+                        OutputExit -> return ()
+                        _ -> yield >> threadDelay 1000000 >> loop
+            loop
+            unlisten
+            Vty.shutdown vty
+
+    return $! Frontend inputEvent mainLoop
+
+render vty s = do
+    let outputString = unwords [show (S.length s), S.toString s]
+    outputString
+        & Vty.string Vty.def_attr
+        & Vty.pic_for_image
+        & Vty.update vty
+    Vty.refresh vty

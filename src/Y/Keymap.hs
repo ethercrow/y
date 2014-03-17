@@ -2,17 +2,35 @@ module Y.Keymap where
 
 import Data.Foldable (asum)
 import qualified FRP.Sodium as Sodium
+
 import Y.Common
 import Y.CoreState
 import Y.String
 import Y.MatchResult
 
+import Debug.Trace
+
 data Action
-    = ImpureA (CoreState -> IO CoreState)
-    | PureA (CoreState -> CoreState)
+    = AsyncA (CoreState -> IO Action)
+    | SyncA SyncAction
+
+isSync :: Action -> Bool
+isSync (SyncA _) = True
+isSync _ = False
+
+data SyncAction
+    = StateModA (CoreState -> CoreState)
     | KeymapModA (Keymap -> Keymap)
-    | AsyncA (CoreState -> IO Action)
     | ExitA
+
+instance Show Action where
+    show (AsyncA _) = "AsyncA"
+    show (SyncA sa) = show sa
+
+instance Show SyncAction where
+    show (StateModA _) = "StateModA"
+    show (KeymapModA _) = "KeymapModA"
+    show ExitA = "ExitA"
 
 data KeymapState = KeymapState
 
@@ -30,9 +48,10 @@ selectBinding input = asum . fmap ($ input)
 
 applyKeymap :: InputOccurrence -> Keymap -> Action
 applyKeymap i (Keymap bindings _) =
+    trace (show i) $
     case selectBinding i bindings of
         WholeMatch action -> action
-        _ -> PureA id
+        _ -> SyncA (StateModA id)
 
 fromKeymap :: Keymap
     -> Sodium.Event InputOccurrence

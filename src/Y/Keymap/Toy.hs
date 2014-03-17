@@ -18,24 +18,24 @@ toyKeymap = Keymap bindings KeymapState
 
 bindingThatChangesBindings :: InputOccurrence -> MatchResult Action
 bindingThatChangesBindings (KChar 'z')
-    = WholeMatch (KeymapModA (\(Keymap bs s) -> (Keymap (anyBigChar : bs) s)))
+    = WholeMatch (SyncA (KeymapModA (\(Keymap bs s) -> (Keymap (anyBigChar : bs) s))))
 bindingThatChangesBindings _ = NoMatch
 
 asyncChar :: InputOccurrence -> MatchResult Action
 asyncChar (KChar c) | c `elem` "xy"
     = WholeMatch . AsyncA $ \_state -> do
         threadDelay 1000000
-        return $! PureA (buffer . text %~ (`snoc` c))
+        return $! SyncA (StateModA (buffer . text %~ (`snoc` c)))
 asyncChar _ = NoMatch
 
 anyChar :: InputOccurrence -> MatchResult Action
-anyChar (KChar c) = WholeMatch (PureA (buffer . text %~ (`snoc` c)))
+anyChar (KChar c) = WholeMatch (SyncA (StateModA (buffer . text %~ (`snoc` c))))
 anyChar _ = NoMatch
 
 anyBigChar :: InputOccurrence -> MatchResult Action
-anyBigChar (KChar c) = WholeMatch (PureA (buffer . text %~ (`snoc` toUpper c)))
+anyBigChar (KChar c) = WholeMatch (SyncA (StateModA (buffer . text %~ (`snoc` toUpper c))))
 anyBigChar _ = NoMatch
 
 exit :: InputOccurrence -> MatchResult Action
-exit KEsc = WholeMatch ExitA
+exit KEsc = WholeMatch (SyncA ExitA)
 exit _ = NoMatch

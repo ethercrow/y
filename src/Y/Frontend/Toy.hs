@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 module Y.Frontend.Toy where
 
 import Control.Concurrent (forkIO, threadDelay, newEmptyMVar, putMVar, takeMVar)
@@ -9,23 +8,26 @@ import Y.Frontend
 
 startToyFrontend :: IO Frontend
 startToyFrontend = do
-    (ev, push) <- Sodium.sync Sodium.newEvent
-
-    void . forkIO $ do
-        putStrLn "Started input thread"
-        forM_ "axbycxdyefghijkzabc" $ \c -> do
-            threadDelay 300000
-            Sodium.sync $ push (KChar c)
-        Sodium.sync $ push KEsc
+    (inputEvent, pushInput) <- Sodium.sync Sodium.newEvent
 
     let mainLoop vmEvent = do
             exitMVar <- newEmptyMVar
 
-            void . Sodium.sync . Sodium.listen vmEvent $ \case
-                OutputViewModel vm -> print vm
+            unlistenOutput <- Sodium.sync . Sodium.listen vmEvent $ \e -> case e of
+                OutputViewModel vm -> render vm
                 OutputExit -> putMVar exitMVar ()
                 _ -> return ()
 
-            takeMVar exitMVar
+            void . forkIO $ do
+                putStrLn "Started input thread"
+                forM_ "axbycxdyefghijkzabc" $ \c -> do
+                    Sodium.sync $ pushInput (KChar c)
+                    threadDelay 300000
+                Sodium.sync $ pushInput KEsc
 
-    return $! Frontend ev mainLoop
+            takeMVar exitMVar
+            unlistenOutput
+
+    return $! Frontend inputEvent mainLoop
+
+render = print

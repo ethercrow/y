@@ -24,7 +24,8 @@ main = do
     let config = Config toyKeymap
         inputEvent = fe ^. feInputEvent
 
-    viewModels <- Sodium.sync (startCore config inputEvent)
+    (viewModels, shutdown) <- Sodium.sync $ startCore config inputEvent
 
     putStrLn "Proceeding to frontend's main loop"
     (fe ^. feMainLoop) viewModels
+    shutdown
