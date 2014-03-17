@@ -4,8 +4,7 @@ module Y.Frontend.Vty where
 
 import Control.Concurrent
 import Control.Lens
-import Control.Monad (forM_, void, forever)
-import Data.Default
+import Control.Monad (forM_, void)
 import qualified FRP.Sodium as Sodium
 import qualified Graphics.Vty as Vty
 
@@ -21,8 +20,7 @@ startVtyFrontend = do
     let mainLoop outputEvent = do
             outputMVar <- newEmptyMVar
 
-            unlisten <- Sodium.sync $ Sodium.listen outputEvent $ \o -> do
-                putMVar outputMVar o
+            unlisten <- Sodium.sync $ Sodium.listen outputEvent (putMVar outputMVar)
 
             void . forkIO $ do
                 putStrLn "Started input thread"
@@ -45,6 +43,7 @@ startVtyFrontend = do
 
     return $! Frontend inputEvent mainLoop
 
+render :: Vty.Vty -> S.YiString -> IO ()
 render vty s = do
     let outputString = unwords [show (S.length s), S.toString s]
     outputString

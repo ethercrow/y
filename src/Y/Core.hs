@@ -7,6 +7,7 @@ module Y.Core
 import Control.Lens hiding (Action)
 import Data.Default
 import qualified FRP.Sodium as Sodium
+import qualified FRP.Sodium.IO as SodiumIO
 
 import Y.Buffer
 import Y.Common
@@ -22,12 +23,22 @@ startCore config inputEvent = do
         configBehaviour <- Sodium.accum config configModEvent
         stateBehaviour <- Sodium.accum (CoreState def) stateModEvent
 
-        let actionEvent = Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
+        let actionEvent = Sodium.merge
+                            (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
                                             inputEvent
-                                            configBehaviour
+                                            configBehaviour)
+                            asyncActionEvent
+
             syncActionEvent = actionEvent
                             & Sodium.filterE isSync
                             & fmap (\(SyncA x) -> x)
+
+            asyncActionEvent = actionEvent
+                             & Sodium.filterE (not . isSync)
+                             & fmap (\(AsyncA x) -> do
+                                        currentState <- Sodium.sync $ Sodium.sample stateBehaviour
+                                        x currentState)
+                             & SodiumIO.executeAsyncIO
 
             outputEvent = Sodium.merge
                 (fmap (OutputViewModel . ViewModel . view (buffer . text))
