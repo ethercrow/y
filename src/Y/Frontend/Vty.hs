@@ -4,7 +4,7 @@ module Y.Frontend.Vty where
 
 import Control.Concurrent
 import Control.Lens
-import Control.Monad (forM_, void)
+import Control.Monad (forever, void)
 import qualified FRP.Sodium as Sodium
 import qualified Graphics.Vty as Vty
 
@@ -24,12 +24,14 @@ startVtyFrontend = do
 
             void . forkIO $ do
                 putStrLn "Started input thread"
+                forever $ do
+                    vtyInput <- Vty.next_event vty
 
-                forM_ "axbycxdyefghijkzabc" $ \c -> do
-                    Sodium.sync $ pushInput (KChar c)
-                    yield
-                    threadDelay 300000
-                Sodium.sync $ pushInput KEsc
+                    let minput = convertInput vtyInput
+
+                    case minput of
+                        Just input -> Sodium.sync $ pushInput input
+                        Nothing -> return ()
 
             let loop = do
                     output <- takeMVar outputMVar
@@ -51,3 +53,8 @@ render vty s = do
         & Vty.pic_for_image
         & Vty.update vty
     Vty.refresh vty
+
+convertInput :: Vty.Event -> Maybe InputOccurrence
+convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
+convertInput (Vty.EvKey (Vty.KASCII c) []) = Just (KChar c)
+convertInput _ = Nothing
