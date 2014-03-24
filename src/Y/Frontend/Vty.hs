@@ -7,6 +7,7 @@ import Control.Lens
 import Control.Monad (forever, void)
 import qualified FRP.Sodium as Sodium
 import qualified Graphics.Vty as Vty
+import qualified Data.Vector as V
 
 import Y.Common
 import Y.Frontend
@@ -36,7 +37,7 @@ startVtyFrontend = do
             let loop = do
                     output <- takeMVar outputMVar
                     case output of
-                        OutputViewModel (ViewModel s) -> render vty s >> loop
+                        OutputViewModel (ViewModel s o) -> render vty s o >> loop
                         OutputExit -> return ()
                         _ -> yield >> threadDelay 1000000 >> loop
             loop
@@ -45,15 +46,24 @@ startVtyFrontend = do
 
     return $! Frontend inputEvent mainLoop
 
-render :: Vty.Vty -> S.YiString -> IO ()
-render vty s = do
-    s
-        & S.toString
-        & lines
-        & map (\x -> Vty.string Vty.def_attr (if null x then " " else x))
-        & Vty.vert_cat
-        & Vty.pic_for_image
-        & Vty.update vty
+render :: Vty.Vty -> S.YiString -> [BufferOverlay] -> IO ()
+render vty s overlays = do
+    let uncoloredLines = lines (S.toString s)
+                       & map (\x -> if null x then " " else x)
+
+        coloredLines = foldr applyOverlay
+                             (zip uncoloredLines (repeat Default))
+                             overlays
+        applyOverlay (BufferOverlay _ los) = zipWith (\(LineOverlay ocolor) (l, color) -> case ocolor of
+                                                            Default -> (l, color)
+                                                            _ -> (l, ocolor))
+                                                     (V.toList los)
+
+    let image = coloredLines
+              & map (\(x, color) -> Vty.string (colorToAttr color) x)
+              & Vty.vert_cat
+
+    Vty.update vty $ Vty.pic_for_image image
     Vty.refresh vty
 
 convertInput :: Vty.Event -> Maybe InputOccurrence
@@ -61,3 +71,8 @@ convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
 convertInput (Vty.EvKey Vty.KEnter []) = Just KEnter
 convertInput (Vty.EvKey (Vty.KASCII c) []) = Just (KChar c)
 convertInput _ = Nothing
+
+colorToAttr :: Color -> Vty.Attr
+colorToAttr Default = Vty.def_attr
+colorToAttr Red = Vty.with_fore_color Vty.def_attr Vty.red
+colorToAttr Green = Vty.with_fore_color Vty.def_attr Vty.green

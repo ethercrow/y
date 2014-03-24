@@ -30,4 +30,5 @@ startToyFrontend = do
 
     return $! Frontend inputEvent mainLoop
 
+render :: ViewModel -> IO ()
 render = print

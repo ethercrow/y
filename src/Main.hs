@@ -8,6 +8,7 @@ import qualified FRP.Sodium as Sodium
 import Y.Core
 import Y.Frontend
 import Y.Config
+import Y.Highlighter.Diff
 
 import Y.Frontend.Toy
 import Y.Frontend.Vty
@@ -21,7 +22,7 @@ main = do
     -- fe <- startToyFrontend
     fe <- startVtyFrontend
 
-    let config = Config toyKeymap
+    let config = Config toyKeymap diffHighlighter
         inputEvent = fe ^. feInputEvent
 
     (viewModels, shutdown) <- Sodium.sync $ startCore config inputEvent
