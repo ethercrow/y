@@ -47,14 +47,17 @@ startVtyFrontend = do
 
 render :: Vty.Vty -> S.YiString -> IO ()
 render vty s = do
-    let outputString = unwords [show (S.length s), S.toString s]
-    outputString
-        & Vty.string Vty.def_attr
+    s
+        & S.toString
+        & lines
+        & map (\x -> Vty.string Vty.def_attr (if null x then " " else x))
+        & Vty.vert_cat
         & Vty.pic_for_image
         & Vty.update vty
     Vty.refresh vty
 
 convertInput :: Vty.Event -> Maybe InputOccurrence
 convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
+convertInput (Vty.EvKey Vty.KEnter []) = Just KEnter
 convertInput (Vty.EvKey (Vty.KASCII c) []) = Just (KChar c)
 convertInput _ = Nothing

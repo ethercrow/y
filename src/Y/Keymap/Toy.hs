@@ -14,7 +14,7 @@ import Y.MatchResult
 
 toyKeymap :: Keymap
 toyKeymap = Keymap bindings KeymapState
-    where bindings = [asyncChar, bindingThatChangesBindings, anyChar, exit]
+    where bindings = [asyncChar, bindingThatChangesBindings, enterChar, anyChar, exit]
 
 bindingThatChangesBindings :: InputOccurrence -> MatchResult Action
 bindingThatChangesBindings (KChar 'z')
@@ -29,13 +29,20 @@ asyncChar (KChar c) | c `elem` "xy"
 asyncChar _ = NoMatch
 
 anyChar :: InputOccurrence -> MatchResult Action
-anyChar (KChar c) = WholeMatch (SyncA (StateModA (buffer . text %~ (`snoc` c))))
+anyChar (KChar c) = printCharAction c
 anyChar _ = NoMatch
 
 anyBigChar :: InputOccurrence -> MatchResult Action
-anyBigChar (KChar c) = WholeMatch (SyncA (StateModA (buffer . text %~ (`snoc` toUpper c))))
+anyBigChar (KChar c) = printCharAction (toUpper c)
 anyBigChar _ = NoMatch
+
+enterChar :: InputOccurrence -> MatchResult Action
+enterChar KEnter = printCharAction '\n'
+enterChar _ = NoMatch
 
 exit :: InputOccurrence -> MatchResult Action
 exit KEsc = WholeMatch (SyncA ExitA)
 exit _ = NoMatch
+
+printCharAction :: Char -> MatchResult Action
+printCharAction c = WholeMatch (SyncA (StateModA (buffer . text %~ (`snoc` c))))
