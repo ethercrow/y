@@ -8,44 +8,84 @@ module Y.String
     ( YiString
     , Position(..)
     , Size(..)
-
-    , fromString, toString
-    , singleton, null, empty, length
-    , append, concat
+    , fromString , toString
+    , empty
+    , singleton, null, length
+    , append , concat
     , reverse
     , take, drop
     , cons, snoc
-    , splitAt, splitAtLine
+    , splitAt
+    , splitAtLine
     , countNewLines
     ) where
 
-import Prelude hiding (null, length, concat, splitAt, reverse, take, drop, lines)
+import Prelude hiding (null, length, concat, splitAt, reverse, take, drop, lines, foldr)
 
 import Control.Lens hiding (cons, snoc)
 import Data.Default
+import Data.Foldable (foldr, foldMap)
+import Data.Function (on)
 import Data.Int
-import qualified Data.List as L
 import Data.Monoid
+import qualified Data.Sequence as S
 import Data.String hiding (lines)
 import qualified Data.Text.Lazy as TL
 
-newtype YiString = YiString { fromYiString :: TL.Text }
-    deriving (Monoid, Show, Eq)
+maxShortLineLength :: Int64
+maxShortLineLength = 128
 
-instance (t ~ YiString) => Rewrapped YiString TL.Text
-instance Wrapped YiString where
-    type Unwrapped YiString = TL.Text
-    _Wrapped' = iso fromYiString YiString
-    {-# INLINE _Wrapped' #-}
+data Line
+    = ShortLine TL.Text
+    | LongLine (S.Seq TL.Text)
+    deriving Show
+
+newtype YiString = YiString
+    { fromYiString :: S.Seq Line
+    } deriving Show
+
+mkLine :: TL.Text -> Line
+mkLine t | TL.length t < maxShortLineLength = ShortLine t
+mkLine t = LongLine $ S.fromList $ map TL.fromStrict $ TL.toChunks t
+
+instance Monoid Line where
+    mempty = ShortLine ""
+    mappend (ShortLine l) (ShortLine r)
+        | TL.length l + TL.length r <= maxShortLineLength = ShortLine (l <> r)
+    mappend (ShortLine l) (ShortLine r) = LongLine (S.fromList [l, r])
+    mappend (ShortLine l) (LongLine rs) = LongLine (l <| rs)
+    mappend (LongLine ls) (ShortLine r) = LongLine (ls |> r)
+    mappend (LongLine ls) (LongLine rs) = LongLine (ls <> rs)
+
+lineToLazyText :: Line -> TL.Text
+lineToLazyText (ShortLine t) = t
+lineToLazyText (LongLine chunks) = foldr mappend "" chunks
+
+instance Monoid YiString where
+    mempty = ""
+    mappend (YiString l) (YiString r) = YiString ((l' S.|> (lend <> rbegin)) <> r')
+        where l' S.:> lend = S.viewr l
+              rbegin S.:< r' = S.viewl r
+
+fromLazyText :: TL.Text -> YiString
+fromLazyText = YiString . S.fromList . (map mkLine) . TL.splitOn "\n"
 
 instance IsString YiString where
-    fromString = YiString . TL.pack
+    fromString = fromLazyText . TL.pack
 
 instance Default YiString where
-    def = YiString ""
+    def = mempty
+
+instance Eq YiString where
+    (==) = (==) `on` toLazyText
+
+toLazyText :: YiString -> TL.Text
+toLazyText = TL.intercalate "\n"
+           . foldr (mappend . return . lineToLazyText) []
+           . fromYiString
 
 toString :: YiString -> String
-toString (YiString t) = TL.unpack t
+toString = TL.unpack . toLazyText
 
 -- | Position measured in characters, not bytes.
 newtype Position = Position Int
@@ -55,11 +95,16 @@ newtype Position = Position Int
 newtype Size = Size Int64
     deriving (Eq, Show, Ord)
 
+instance Monoid Size where
+    mempty = Size 0
+    mappend (Size a) (Size b) = Size (a + b)
+
 singleton :: Char -> YiString
-singleton = YiString . TL.singleton
+singleton '\n' = YiString (S.fromList [ShortLine "", ShortLine ""])
+singleton c = YiString . S.singleton . ShortLine . TL.singleton $ c
 
 null :: YiString -> Bool
-null (YiString t) = TL.null t
+null = TL.null . toLazyText
 
 empty :: YiString
 empty = mempty
@@ -71,37 +116,58 @@ concat :: [YiString] -> YiString
 concat = mconcat
 
 length :: YiString -> Size
-length (YiString t) = Size (TL.length t)
+length (YiString lines)
+    = (Size (fromIntegral (S.length lines - 1))) `mappend` foldMap lineLength lines
 
 splitAt :: Int -> YiString -> (YiString, YiString)
-splitAt i (YiString t) = over both YiString (TL.splitAt (fromIntegral i) t)
+splitAt i
+    = over both fromLazyText
+    . TL.splitAt (fromIntegral i)
+    . toLazyText
 
 splitAtLine :: Int -> YiString -> (YiString, YiString)
 splitAtLine 0 s = (mempty, s)
-splitAtLine i (YiString t)
-    = case lines of
-        [l] -> (YiString l, mempty)
-        ls | L.length ls <= i -> (YiString t, mempty)
-        ls -> (L.take i ls, L.drop i ls)
-            & over both (TL.intercalate "\n")
-            & over _1 (\l -> if "\n" `TL.isSuffixOf` l then l else l <> "\n")
-            & over both YiString
-    where lines = TL.splitOn "\n" t
+splitAtLine i s@(YiString lines) | i >= S.length lines = (s, mempty)
+splitAtLine i (YiString lines)
+    = (YiString ls', YiString rs)
+    where ls = S.take i lines
+          rs = S.drop i lines
+          ls' = if S.length ls == 1 || lineLength (ls ^. _last) > Size 0
+                then ls |> ShortLine ""
+                else ls
 
 countNewLines :: YiString -> Int
-countNewLines = fromIntegral . TL.count "\n" . fromYiString
+countNewLines = pred . fromIntegral . S.length . fromYiString
+
+reverseLine :: Line -> Line
+reverseLine (ShortLine t) = ShortLine (TL.reverse t)
+reverseLine (LongLine chunks) = LongLine (fmap TL.reverse (S.reverse chunks))
 
 reverse :: YiString -> YiString
-reverse = YiString . TL.reverse . fromYiString
+reverse = YiString . fmap reverseLine . S.reverse . fromYiString
 
 take :: Integral i => i -> YiString -> YiString
-take n = YiString . TL.take (fromIntegral n) . fromYiString
+take n = fromLazyText . TL.take (fromIntegral n) . toLazyText
 
 drop :: Integral i => i -> YiString -> YiString
-drop n = YiString . TL.drop (fromIntegral n) . fromYiString
+drop n = fromLazyText . TL.drop (fromIntegral n) . toLazyText
 
-cons :: Char -> YiString -> YiString
-cons c = YiString . TL.cons c . fromYiString
+lineSnoc :: Line -> Char -> Line
+lineSnoc (ShortLine t) c = ShortLine (t `TL.snoc` c)
+lineSnoc (LongLine chunks) c = LongLine (chunks & over _last (`TL.snoc` c))
+
+lineCons :: Char -> Line -> Line
+lineCons c (ShortLine t) = ShortLine (c `TL.cons` t)
+lineCons c (LongLine chunks) = LongLine (chunks & over _head (c `TL.cons`))
+
+lineLength :: Line -> Size
+lineLength (ShortLine t) = Size (TL.length t)
+lineLength (LongLine chunks) = foldMap (Size . TL.length) chunks
 
 snoc :: YiString -> Char -> YiString
-snoc s c = YiString (TL.snoc (fromYiString s) c)
+snoc (YiString lines) '\n' = YiString (lines |> ShortLine "")
+snoc (YiString lines) c = YiString (lines & over _last (`lineSnoc` c))
+
+cons :: Char -> YiString -> YiString
+cons '\n' (YiString lines) = YiString (ShortLine "" <| lines)
+cons c (YiString lines) = YiString (lines & over _head (c `lineCons`))

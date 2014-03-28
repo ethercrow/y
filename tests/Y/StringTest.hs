@@ -47,11 +47,18 @@ tests = testGroup "Rope"
             let rq = S.fromString s
                 (r, q) = S.splitAtLine i rq
             in rq == r <> q
+    , testProperty "splitAtLine N" $
+        \s ->
+            let rq = S.fromString s
+                (r, q) = S.splitAtLine (S.countNewLines rq + 1) rq
+            in (r, q) == (rq, mempty)
+    , testCase "singleton" $
+        S.fromString "\n" @=? newline
     , testCase "splitAtLine 1 'a\\nb'" $
-        S.splitAtLine 1 (S.fromString "a\nb") @=? (S.fromString "a\n", S.fromString "b")
+        S.splitAtLine 1 (S.fromString "a\nb") @?= (S.fromString "a\n", S.fromString "b")
     , testCase "splitAtLine 1 '\\n'" $
-        S.splitAtLine 1 (S.fromString "\n") @=? (S.fromString "\n", S.empty)
+        S.splitAtLine 1 (S.fromString "\n") @?= (S.fromString "\n", S.empty)
     , testCase "splitAtLine 1 '\\n\\n'" $
-        S.splitAtLine 1 (S.fromString "\n\n") @=? (newline, newline)
+        S.splitAtLine 1 (S.fromString "\n\n") @?= (newline, newline)
     ]
 
