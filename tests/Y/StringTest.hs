@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Y.StringTest where
 
@@ -10,6 +11,7 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.Tasty.TH
 
+import Control.Applicative
 import Data.Foldable (foldMap)
 import Data.Monoid
 import qualified Data.Text.Lazy as TL
@@ -68,10 +70,11 @@ prop_splitAtLine_1 s t
           q = S.fromString t
       in S.splitAtLine 1 (r <> newline <> q) == (r <> newline, q)
 
-prop_splitAtLine_i s i
+prop_splitAtLine_i (s :: StringWithLotsOfNewlines) i
     = i >= 0 ==>
-      let rq = S.fromString s
-          (r, q) = S.splitAtLine i rq
+      let rq = S.fromString (fromSWLON s)
+          i' = i `rem` (1 + S.length rq)
+          (r, q) = S.splitAtLine i' rq
       in rq == r <> q
 
 prop_splitAtLine_N s
@@ -88,22 +91,24 @@ prop_insertAt i s t
 
 prop_delete_zero i s
     = let r = S.fromString s
-      in r == S.deleteAt i 0 r
+          i' = i `rem` (S.length r + 1)
+      in r == S.deleteAt i' 0 r
 
 prop_deleteAt i l s
-    = i >= 0 && l >= 0 ==>
+    = i >= 0 && l >= 0 && not (null s) ==>
       let i' = i `rem` length s
           l' = l `rem` (length s - i')
           r = S.fromString s
-          r' = S.deleteAt i l r
-      in r' == S.fromString (take i s <> drop (i + l) s)
+          r' = S.deleteAt i' l' r
+      in r' == S.fromString (take i' s <> drop (i' + l') s)
 
 prop_insert_delete i s t
-    = i <= length t ==>
+    = i >= 0 && not (null t) ==>
       let r = S.fromString s
           q = S.fromString t
-          rq = S.insertAt r i q
-      in q == S.deleteAt i (S.length r) rq
+          i' = i `rem` length t
+          rq = S.insertAt r i' q
+      in q == S.deleteAt i' (S.length r) rq
 
 prop_concat_singletons s
     = foldMap S.singleton s == S.fromString s
@@ -130,4 +135,10 @@ case_splitAtLine_1_nl
 
 case_splitAtLine_1_nl_nl
     = S.splitAtLine 1 "\n\n" @?= (newline, newline)
+
+newtype StringWithLotsOfNewlines = StringWithLotsOfNewlines { fromSWLON :: String }
+    deriving Show
+
+instance Arbitrary StringWithLotsOfNewlines where
+    arbitrary = StringWithLotsOfNewlines <$> listOf (elements "a\n")
 

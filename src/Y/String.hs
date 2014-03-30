@@ -133,7 +133,7 @@ splitAtLine i (YiString lines)
     = (YiString ls', YiString rs)
     where ls = S.take i lines
           rs = S.drop i lines
-          ls' = if S.length ls == 1 || lineLength (ls ^. _last) > Size 0
+          ls' = if S.length rs >= 1 || lineLength (ls ^. _last) > Size 0
                 then ls |> mempty
                 else ls
 
