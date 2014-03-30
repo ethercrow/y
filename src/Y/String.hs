@@ -18,10 +18,13 @@ module Y.String
     , splitAt
     , splitAtLine
     , countNewLines
+    , insertAt
+    , deleteAt
     ) where
 
 import Prelude hiding (null, length, concat, splitAt, reverse, take, drop, lines, foldr)
 
+import Control.Applicative hiding (empty)
 import Control.Lens hiding (cons, snoc)
 import Data.Default
 import Data.Foldable (foldr, foldMap)
@@ -92,8 +95,9 @@ newtype Position = Position Int
     deriving (Eq, Show, Ord)
 
 -- | Size measured in characters, not bytes.
-newtype Size = Size Int64
-    deriving (Eq, Show, Ord)
+newtype Size = Size
+    { fromSize :: Int64
+    } deriving (Eq, Show, Ord)
 
 instance Monoid Size where
     mempty = Size 0
@@ -115,9 +119,9 @@ append = mappend
 concat :: [YiString] -> YiString
 concat = mconcat
 
-length :: YiString -> Size
+length :: YiString -> Int
 length (YiString lines)
-    = (Size (fromIntegral (S.length lines - 1))) `mappend` foldMap lineLength lines
+    = S.length lines - 1 + fromIntegral (fromSize (foldMap lineLength lines))
 
 splitAt :: Int -> YiString -> (YiString, YiString)
 splitAt i
@@ -171,3 +175,11 @@ snoc (YiString lines) c = YiString (lines & over _last (`lineSnoc` c))
 cons :: Char -> YiString -> YiString
 cons '\n' (YiString lines) = YiString (ShortLine "" <| lines)
 cons c (YiString lines) = YiString (lines & over _head (c `lineCons`))
+
+insertAt :: YiString -> Int -> YiString -> YiString
+insertAt new index old = oldLeft <> new <> oldRight
+    where (oldLeft, oldRight) = splitAt index old
+
+deleteAt :: Int -> Int -> YiString -> YiString
+deleteAt index size old = left <> right
+    where (left, (middle, right)) = splitAt size <$> splitAt index old

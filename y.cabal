@@ -77,6 +77,7 @@ Test-Suite test-suite
     , vector
     , tasty
     , tasty-hunit
+    , tasty-th
     , tasty-quickcheck
     , HUnit
     , QuickCheck
