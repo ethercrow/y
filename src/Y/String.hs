@@ -3,13 +3,12 @@
 module Y.String
     ( YiString
     , Position(..)
-    , Size(..)
     , fromString, toString
     , toReverseString
     , fromLazyText, toLazyText
     , empty
     , singleton, null, length
-    , append , concat
+    , append, concat
     , reverse
     , take, drop
     , cons, snoc
@@ -75,6 +74,8 @@ lineToLazyText (LongLine chunks) = foldr mappend "" chunks
 
 instance Monoid YiString where
     mempty = ""
+    mappend s (YiString _ (Size 0)) = s
+    mappend (YiString _ (Size 0)) s = s
     mappend (YiString l sl) (YiString r sr)
         = YiString ((l' S.|> (lend <> rbegin)) <> r') (sl <> sr)
         where l' S.:> lend = S.viewr l
@@ -143,10 +144,20 @@ length :: YiString -> Int
 length (YiString _lines (Size size)) = fromIntegral size
 
 splitAt :: Int -> YiString -> (YiString, YiString)
-splitAt i
-    = over both fromLazyText
-    . TL.splitAt (fromIntegral i)
-    . toLazyText
+splitAt n s | n <= 0 = (mempty, s)
+splitAt n s@(YiString _lines (Size size)) | fromIntegral n >= size = (s, mempty)
+splitAt n (YiString lines (Size size)) =
+    (YiString leftLines (Size n64), YiString rightLines (Size (size - n64)))
+    where n64 = fromIntegral n :: Int64
+          cumulativeLengths
+              = S.scanl (\acc line -> 1 + acc + fromSize (lineLength line)) 0 lines
+          (mostlyLeftPart, strictlyRightPart)
+              = S.spanl ((<= n64) . fst) (S.zip cumulativeLengths lines)
+          strictlyLeftPart S.:> (x, lastLeftLine)
+              = S.viewr mostlyLeftPart
+          (leftLines, rightLines)
+              = (fmap snd strictlyLeftPart |> lineTake (n64 - x) lastLeftLine,
+                 lineDrop (n64 - x) lastLeftLine <| fmap snd strictlyRightPart)
 
 splitAtLine :: Int -> YiString -> (YiString, YiString)
 splitAtLine 0 s = (mempty, s)
@@ -178,8 +189,11 @@ reverse (YiString lines size) = YiString (fmap reverseLine $ S.reverse lines) si
 take :: Integral i => i -> YiString -> YiString
 take n = fromLazyText . TL.take (fromIntegral n) . toLazyText
 
-dropLine :: Integral i => i -> Line -> Line
-dropLine n = mkLine . TL.drop (fromIntegral n) . lineToLazyText
+lineDrop :: Integral i => i -> Line -> Line
+lineDrop n = mkLine . TL.drop (fromIntegral n) . lineToLazyText
+
+lineTake :: Integral i => i -> Line -> Line
+lineTake n = mkLine . TL.take (fromIntegral n) . lineToLazyText
 
 drop :: Integral i => i -> YiString -> YiString
 drop 0 s = s
@@ -188,7 +202,7 @@ drop n (YiString lines (Size size)) =
     let Size firstLength = lineLength (lines ^. _head)
         n64 = fromIntegral n
     in if n64 <= firstLength
-       then YiString (lines & over _head (dropLine n)) (Size (size - n64))
+       then YiString (lines & over _head (lineDrop n)) (Size (size - n64))
        else drop (n64 - firstLength - 1)
                  (YiString (lines ^. _tail) (Size (size - firstLength - 1)))
 

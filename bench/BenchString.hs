@@ -8,28 +8,38 @@ import Data.List (foldl')
 import qualified Y.String as S
 
 benchCons :: String -> String -> C.Benchmark
-benchCons text name = C.bench name $ C.nf go ""
+benchCons text name
+    = C.bench name $ C.nf go ""
     where go start = foldr S.cons start text
 
 benchSnoc :: String -> String -> C.Benchmark
-benchSnoc text name = C.bench name$ C.nf go ""
+benchSnoc text name
+    = C.bench name $ C.nf go ""
     where go start = foldl' S.snoc start text
 
 benchLength :: S.YiString -> String -> C.Benchmark
-benchLength text name = C.bench name
-            $ C.nf S.length text
+benchLength text name
+    = C.bench name
+    $ C.nf S.length text
 
 benchLines :: S.YiString -> String -> C.Benchmark
-benchLines text name = C.bench name
-           $ C.nf (S.splitOnNewLines :: S.YiString -> [S.YiString]) text
+benchLines text name
+    = C.bench name
+    $ C.nf (S.splitOnNewLines :: S.YiString -> [S.YiString]) text
 
 benchDrop :: S.YiString -> String -> C.Benchmark
-benchDrop text name = C.bench name
-          $ C.nf (\x -> foldr S.drop x (replicate 1000 (1 :: Int))) text
+benchDrop text name
+    = C.bench name
+    $ C.nf (\x -> foldr S.drop x (replicate 1000 (1 :: Int))) text
 
 benchTake :: S.YiString -> String -> C.Benchmark
-benchTake text name = C.bench name
-          $ C.nf (\x -> foldr S.take x [1000, 999 .. 1 :: Int]) text
+benchTake text name
+    = C.bench name
+    $ C.nf (\x -> foldr S.take x [1000, 999 .. 1 :: Int]) text
+
+benchSplitAt text name
+    = C.bench name
+    $ C.nf (\x -> foldr ((fst .) . S.splitAt) x [1000, 999 .. 1 :: Int]) text
 
 main :: IO ()
 main = C.defaultMain
@@ -43,6 +53,8 @@ main = C.defaultMain
     , benchDrop wideYiString "drop wide"
     , benchTake longYiString "take long"
     , benchTake wideYiString "take wide"
+    , benchSplitAt longYiString "splitAt long"
+    , benchSplitAt wideYiString "splitAt wide"
     ]
 
 longText :: String

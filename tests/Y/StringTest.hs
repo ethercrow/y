@@ -50,6 +50,10 @@ prop_length s
 prop_append s t
     = S.fromString (s ++ t) == S.append (S.fromString s) (S.fromString t)
 
+prop_append_nl s t
+    = S.fromString (fromSWLON s ++ fromSWLON t)
+        == S.append (S.fromString (fromSWLON s)) (S.fromString (fromSWLON t))
+
 prop_concat ss
     = S.fromString (concat ss) == S.concat (map S.fromString ss)
 
@@ -58,11 +62,11 @@ prop_countNewLines s
 
 prop_splitAt s i
     = i >= 0 ==>
-      let (x, y) = splitAt i s
-      in S.splitAt i (S.fromString s) == (S.fromString x, S.fromString y)
+      let (x, y) = splitAt i (fromSWLON s)
+      in S.splitAt i (S.fromString (fromSWLON s)) == (S.fromString x, S.fromString y)
 
 prop_splitAtLine_0 s
-    = let r = S.fromString s in S.splitAtLine 0 r == (mempty, r)
+    = let r = S.fromString (fromSWLON s) in S.splitAtLine 0 r == (mempty, r)
 
 prop_splitAtLine_1 s t
     = '\n' `notElem` s ==>
@@ -120,6 +124,9 @@ prop_snoc s c
     = S.toLazyText (S.snoc (S.fromString s) c) == TL.snoc (TL.pack s) c
 
 case_singleton = S.fromString "\n" @=? newline
+
+case_splitAt_1_aaa
+    = S.splitAt 1 "aaa" @?= ("a", "aa")
 
 case_splitAtLine_1_a_nl_b
     = S.splitAtLine 1 "a\nb" @?= ("a\n", "b")
