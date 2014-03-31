@@ -51,8 +51,10 @@ executable y
   ghc-options: -threaded -Wall -rtsopts
   build-depends:
       base >= 4.6
+    , binary
     , containers
     , data-default
+    , deepseq
     , fingertree
     , lens >= 4.0.4
     , sodium >= 0.10
@@ -60,7 +62,7 @@ executable y
     , vector
     , vty
   hs-source-dirs: src
-  default-language:    Haskell2010
+  default-language: Haskell2010
 
 Test-Suite test-suite
   default-language: Haskell2010
@@ -69,8 +71,10 @@ Test-Suite test-suite
   main-is: TestSuite.hs
   build-depends:
       base >= 4.6
+    , binary
     , containers
     , data-default
+    , deepseq
     , lens >= 4.0.4
     , sodium >= 0.10
     , text >= 0.11
@@ -81,3 +85,20 @@ Test-Suite test-suite
     , tasty-quickcheck
     , HUnit
     , QuickCheck
+
+benchmark bench-string
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  hs-source-dirs: src, bench
+  main-is: BenchString.hs
+  build-depends:
+      base >= 4.6
+    , binary
+    , containers
+    , data-default
+    , deepseq
+    , lens >= 4.0.4
+    , sodium >= 0.10
+    , text >= 0.11
+    , vector
+    , criterion
