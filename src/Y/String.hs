@@ -187,7 +187,7 @@ reverse :: YiString -> YiString
 reverse (YiString lines size) = YiString (fmap reverseLine $ S.reverse lines) size
 
 take :: Integral i => i -> YiString -> YiString
-take n = fromLazyText . TL.take (fromIntegral n) . toLazyText
+take n = fst . splitAt (fromIntegral n)
 
 lineDrop :: Integral i => i -> Line -> Line
 lineDrop n = mkLine . TL.drop (fromIntegral n) . lineToLazyText
