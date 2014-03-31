@@ -23,22 +23,31 @@ benchLines :: S.YiString -> String -> C.Benchmark
 benchLines text name = C.bench name
            $ C.nf (S.splitOnNewLines :: S.YiString -> [S.YiString]) text
 
+benchDrop :: S.YiString -> String -> C.Benchmark
+benchDrop text name = C.bench name
+          $ C.nf (\x -> foldr S.drop x (replicate 1000 (1 :: Int))) text
+
+benchTake :: S.YiString -> String -> C.Benchmark
+benchTake text name = C.bench name
+          $ C.nf (\x -> foldr S.take x [1000, 999 .. 1 :: Int]) text
+
 main :: IO ()
 main = C.defaultMain
-    -- [ benchCons longText "cons long"
-    -- , benchCons wideText "cons wide"
-    -- , benchSnoc longText "snoc long"
-    -- , benchSnoc wideText "snoc wide"
-    -- ,
-    [ benchLength longYiString "length long"
-    , benchLength wideYiString "length wide"
+    [ benchCons longText "cons long"
+    , benchCons wideText "cons wide"
+    , benchSnoc longText "snoc long"
+    , benchSnoc wideText "snoc wide"
     , benchLines longYiString "lines long"
     , benchLines wideYiString "lines wide"
+    , benchDrop longYiString "drop long"
+    , benchDrop wideYiString "drop wide"
+    , benchTake longYiString "take long"
+    , benchTake wideYiString "take wide"
     ]
 
 longText :: String
 longText = force . unlines
-         $ replicate 3000 "Lorem ipsum dolor sit amet"
+         $ replicate 1000 "Lorem ipsum dolor sit amet"
 {-# NOINLINE longText #-}
 
 longYiString :: S.YiString
@@ -47,8 +56,8 @@ longYiString = force (S.fromString longText)
 
 wideText :: String
 wideText = force . unlines
-         $ replicate 20 . concat
-         $ replicate 150 "Lorem ipsum dolor sit amet "
+         $ replicate 10 . concat
+         $ replicate 100 "Lorem ipsum dolor sit amet "
 {-# NOINLINE wideText #-}
 
 wideYiString :: S.YiString

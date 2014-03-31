@@ -178,15 +178,34 @@ reverse (YiString lines size) = YiString (fmap reverseLine $ S.reverse lines) si
 take :: Integral i => i -> YiString -> YiString
 take n = fromLazyText . TL.take (fromIntegral n) . toLazyText
 
+dropLine :: Integral i => i -> Line -> Line
+dropLine n = mkLine . TL.drop (fromIntegral n) . lineToLazyText
+
 drop :: Integral i => i -> YiString -> YiString
-drop n = fromLazyText . TL.drop (fromIntegral n) . toLazyText
+drop 0 s = s
+drop n (YiString _lines (Size size)) | size < fromIntegral n = mempty
+drop n (YiString lines (Size size)) =
+    let Size firstLength = lineLength (lines ^. _head)
+        n64 = fromIntegral n
+    in if n64 <= firstLength
+       then YiString (lines & over _head (dropLine n)) (Size (size - n64))
+       else drop (n64 - firstLength - 1)
+                 (YiString (lines ^. _tail) (Size (size - firstLength - 1)))
 
 lineSnoc :: Line -> Char -> Line
+lineSnoc (ShortLine t) c | TL.length t > maxShortLineLength
+    = LongLine (S.fromList [t, TL.singleton c])
 lineSnoc (ShortLine t) c = ShortLine (t `TL.snoc` c)
+lineSnoc (LongLine chunks) c | TL.length (chunks ^. _last) >= maxShortLineLength
+    = LongLine (chunks |> TL.singleton c)
 lineSnoc (LongLine chunks) c = LongLine (chunks & over _last (`TL.snoc` c))
 
 lineCons :: Char -> Line -> Line
+lineCons c (ShortLine t) | TL.length t > maxShortLineLength
+    = LongLine (S.fromList [TL.singleton c, t])
 lineCons c (ShortLine t) = ShortLine (c `TL.cons` t)
+lineCons c (LongLine chunks) | TL.length (chunks ^. _head) >= maxShortLineLength
+    = LongLine (TL.singleton c <| chunks)
 lineCons c (LongLine chunks) = LongLine (chunks & over _head (c `TL.cons`))
 
 lineLength :: Line -> Size
