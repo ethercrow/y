@@ -12,6 +12,7 @@ module Y.String
     , append, concat
     , reverse
     , take, drop
+    , takeScreenful
     , cons, snoc
     , splitAt
     , splitAtLine
@@ -204,6 +205,24 @@ reverse (YiString lines size) = YiString (fmap reverseLine $ S.reverse lines) si
 
 take :: Integral i => i -> YiString -> YiString
 take n = fst . splitAt (fromIntegral n)
+
+takeScreenful :: Int -> Int -> YiString -> YiString
+takeScreenful w h (YiString _lines (Size size)) | w == 0 || h == 0 || size == 0 = mempty
+takeScreenful w h (YiString lines (Size size)) =
+    if headLineLength >= w * h
+    then YiString (S.singleton (lineTake (w * h) headLine)) (Size (fromIntegral (w * h)))
+    else if h - headLineHeight > 0
+    then YiString (S.fromList [headLine, mempty]) (Size (fromIntegral (succ headLineLength)))
+         <> takeScreenful w (h - headLineHeight) tailString
+    else YiString (S.singleton headLine) headLineSize
+    where
+    headLineHeight = max 1 (headLineLength `div` w
+                             + if headLineLength `rem` w > 1 then 1 else 0)
+    headLineLength = fromIntegral $ fromSize headLineSize
+    headLineSize = lineSize headLine
+    (headLine, tailString) = case S.viewl lines of
+        l S.:< tailLines
+            -> (l, YiString tailLines (Size (size - 1 - fromIntegral headLineLength)))
 
 lineDrop :: Integral i => i -> Line -> Line
 lineDrop 0 l = l

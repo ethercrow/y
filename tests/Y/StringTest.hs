@@ -143,6 +143,33 @@ case_splitAtLine_1_nl
 case_splitAtLine_1_nl_nl
     = S.splitAtLine 1 "\n\n" @?= (newline, newline)
 
+case_takeScreenful_1_1
+    = S.takeScreenful 1 1 "ab\ncd\nef" @?= "a"
+
+case_takeScreenful_1_2
+    = S.takeScreenful 1 2 "ab\ncd\nef" @?= "ab"
+
+case_takeScreenful_1_3
+    = S.takeScreenful 1 3 "ab\ncd\nef" @?= "ab\nc"
+
+case_takeScreenful_2_1
+    = S.takeScreenful 2 1 "ab\ncd\nef" @?= "ab"
+
+case_takeScreenful_2_2
+    = S.takeScreenful 2 2 "ab\ncd\nef" @?= "ab\ncd"
+
+case_takeScreenful_3_1
+    = S.takeScreenful 3 1 "ab\ncd\nef" @?= "ab"
+
+case_takeScreenful_3_3
+    = S.takeScreenful 3 3 "ab\ncd\nef" @?= "ab\ncd\nef"
+
+case_takeScreenful_4_4
+    = S.takeScreenful 4 4 "abcd1234567\nfoob\nquux" @?= "abcd1234567\nfoob"
+
+case_takeScreenful_4_4'
+    = S.takeScreenful 4 4 "abcd12345678\nfoob\nquux" @?= "abcd12345678\nfoob"
+
 newtype StringWithLotsOfNewlines = StringWithLotsOfNewlines { fromSWLON :: String }
     deriving Show
 
