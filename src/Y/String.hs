@@ -13,6 +13,7 @@ module Y.String
     , reverse
     , take, drop
     , takeScreenful
+    , coordsOfPosition
     , cons, snoc
     , splitAt
     , splitAtLine
@@ -32,7 +33,7 @@ import Control.DeepSeq
 import Control.Lens hiding (cons, snoc, index)
 import Data.Binary
 import Data.Default
-import Data.Foldable (foldr, foldMap)
+import Data.Foldable (foldr, foldMap, toList)
 import Data.Int
 import Data.Monoid
 import qualified Data.Sequence as S
@@ -157,7 +158,6 @@ findSplitBoundary n64 = go 0 0 . toList
               | lengthAcc + 1 + fromSize (lineSize l) > n64 = (lengthAcc, index)
           go !lengthAcc !index (l:ls)
               = go (lengthAcc + 1 + fromSize (lineSize l)) (succ index) ls
-          toList = foldr (:) [] . S.viewr
 
 splitAt :: Int -> YiString -> (YiString, YiString)
 splitAt n s | n <= 0 = (mempty, s)
@@ -216,8 +216,7 @@ takeScreenful w h (YiString lines (Size size)) =
          <> takeScreenful w (h - headLineHeight) tailString
     else YiString (S.singleton headLine) headLineSize
     where
-    headLineHeight = max 1 (headLineLength `div` w
-                             + if headLineLength `rem` w > 1 then 1 else 0)
+    headLineHeight = max 1 (headLineLength `div` w + signum (headLineLength `rem` w))
     headLineLength = fromIntegral $ fromSize headLineSize
     headLineSize = lineSize headLine
     (headLine, tailString) = case S.viewl lines of
@@ -241,6 +240,21 @@ lineTake n l = mkLine' (TL.take (fromIntegral n) (lineToLazyText l)) (Size (from
 
 drop :: Integral i => i -> YiString -> YiString
 drop n = snd . splitAt (fromIntegral n)
+
+coordsOfPosition :: Integral i => i -> Int -> YiString -> (Int, Int)
+coordsOfPosition pos w (YiString lines _) = go 0 (fromIntegral pos) (toList lines)
+    where
+        go !topOffset _p [] = (topOffset, 0)
+        go !topOffset p (line : rest)
+            = let lineLength = fromIntegral (fromSize (lineSize line))
+              in if p <= lineLength && p < w
+                 then (topOffset, p)
+                 else if p > lineLength
+                 then go (topOffset + max 1
+                                          (lineLength `div` w + signum (lineLength `rem` w)))
+                         (p - lineLength - 1)
+                         rest
+                 else (topOffset + p `div` w, p `rem` w)
 
 lineSnoc :: Line -> Char -> Line
 lineSnoc (ShortLine t (Size size)) c | size > maxShortLineLength

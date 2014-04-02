@@ -170,6 +170,21 @@ case_takeScreenful_4_4
 case_takeScreenful_4_4'
     = S.takeScreenful 4 4 "abcd12345678\nfoob\nquux" @?= "abcd12345678\nfoob"
 
+case_coordsOfPosition_1
+    = S.coordsOfPosition 0 3 "ab\ncd\nef" @?= (0, 0)
+
+case_coordsOfPosition_2
+    = S.coordsOfPosition 1 3 "ab\ncd\nef" @?= (0, 1)
+
+case_coordsOfPosition_3
+    = S.coordsOfPosition 2 3 "ab\ncd\nef" @?= (0, 2)
+
+case_coordsOfPosition_4
+    = S.coordsOfPosition 3 3 "ab\ncd\nef" @?= (1, 0)
+
+case_coordsOfPosition_5
+    = S.coordsOfPosition 3 3 "abcdef" @?= (1, 0)
+
 newtype StringWithLotsOfNewlines = StringWithLotsOfNewlines { fromSWLON :: String }
     deriving Show
 
