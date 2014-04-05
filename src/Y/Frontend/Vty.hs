@@ -37,7 +37,7 @@ startVtyFrontend = do
             let loop = do
                     output <- takeMVar outputMVar
                     case output of
-                        OutputViewModel (ViewModel s o) -> render vty s o >> loop
+                        OutputViewModel vm -> render vty vm >> loop
                         OutputExit -> return ()
                         _ -> yield >> threadDelay 1000000 >> loop
             loop
@@ -46,24 +46,31 @@ startVtyFrontend = do
 
     return $! Frontend inputEvent mainLoop
 
-render :: Vty.Vty -> S.YiString -> [BufferOverlay] -> IO ()
-render vty s overlays = do
+render :: Vty.Vty -> ViewModel -> IO ()
+render vty (ViewModel s mcursor overlays) = do
     let uncoloredLines = lines (S.toString s)
                        & map (\x -> if null x then " " else x)
 
         coloredLines = foldr applyOverlay
                              (zip uncoloredLines (repeat Default))
                              overlays
-        applyOverlay (BufferOverlay _ los) = zipWith (\(LineOverlay ocolor) (l, color) -> case ocolor of
-                                                            Default -> (l, color)
-                                                            _ -> (l, ocolor))
-                                                     (V.toList los)
+        applyOverlay (BufferOverlay _ los)
+            = zipWith (\(LineOverlay ocolor) (l, color)
+                            -> case ocolor of
+                                Default -> (l, color)
+                                _ -> (l, ocolor))
+                      (V.toList los)
 
-    let image = coloredLines
+        image = coloredLines
               & map (\(x, color) -> Vty.string (colorToAttr color) x)
               & Vty.vert_cat
+        cursor = case mcursor of
+            Nothing -> Vty.NoCursor
+            Just (x, y) -> Vty.Cursor (fromIntegral y) (fromIntegral x)
+        background = Vty.Background ' ' Vty.def_attr
+        picture = Vty.Picture cursor image background
 
-    Vty.update vty $ Vty.pic_for_image image
+    Vty.update vty picture
     Vty.refresh vty
 
 convertInput :: Vty.Event -> Maybe InputOccurrence

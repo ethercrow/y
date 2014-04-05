@@ -3,7 +3,8 @@
 
 module Y.String
     ( YiString
-    , Position(..)
+    , Position
+    , Size(..)
     , fromString, toString
     , toReverseString
     , fromLazyText, toLazyText
@@ -119,9 +120,7 @@ toString = TL.unpack . toLazyText
 toReverseString :: YiString -> String
 toReverseString = toString . reverse
 
--- | Position measured in characters, not bytes.
-newtype Position = Position Int
-    deriving (Eq, Show, Ord)
+type Position = Int64
 
 -- | Size measured in characters, not bytes.
 newtype Size = Size
@@ -148,8 +147,8 @@ append = mappend
 concat :: [YiString] -> YiString
 concat = mconcat
 
-length :: YiString -> Int
-length (YiString _lines (Size size)) = fromIntegral size
+length :: YiString -> Size
+length (YiString _lines size) = size
 
 findSplitBoundary :: Int64 -> S.Seq Line -> (Int64, Int)
 findSplitBoundary n64 = go 0 0 . toList
@@ -159,7 +158,7 @@ findSplitBoundary n64 = go 0 0 . toList
           go !lengthAcc !index (l:ls)
               = go (lengthAcc + 1 + fromSize (lineSize l)) (succ index) ls
 
-splitAt :: Int -> YiString -> (YiString, YiString)
+splitAt :: Position -> YiString -> (YiString, YiString)
 splitAt n s | n <= 0 = (mempty, s)
 splitAt n s@(YiString _lines (Size size)) | fromIntegral n >= size = (s, mempty)
 splitAt n (YiString lines (Size size)) =
@@ -238,10 +237,10 @@ lineTake 0 _ = mempty
 lineTake n l | fromSize (lineSize l) < fromIntegral n = l
 lineTake n l = mkLine' (TL.take (fromIntegral n) (lineToLazyText l)) (Size (fromIntegral n))
 
-drop :: Integral i => i -> YiString -> YiString
-drop n = snd . splitAt (fromIntegral n)
+drop :: Size -> YiString -> YiString
+drop (Size n) = snd . splitAt n 
 
-coordsOfPosition :: Integral i => i -> Int -> YiString -> (Int, Int)
+coordsOfPosition :: Position -> Int -> YiString -> (Int, Int)
 coordsOfPosition pos w (YiString lines _) = go 0 (fromIntegral pos) (toList lines)
     where
         go !topOffset _p [] = (topOffset, 0)
@@ -297,12 +296,12 @@ cons c (YiString lines (Size size))
     = YiString (lines & over _head (c `lineCons`))
                (Size (succ size))
 
-insertAt :: YiString -> Int -> YiString -> YiString
-insertAt new index old = oldLeft <> new <> oldRight
-    where (oldLeft, oldRight) = splitAt index old
+insertAt :: YiString -> Position -> YiString -> YiString
+insertAt new pos old = oldLeft <> new <> oldRight
+    where (oldLeft, oldRight) = splitAt pos old
 
-deleteAt :: Int -> Int -> YiString -> YiString
-deleteAt index size old = left <> right
+deleteAt :: Position -> Size -> YiString -> YiString
+deleteAt index (Size size) old = left <> right
     where (left, (_middle, right)) = splitAt size <$> splitAt index old
 
 readFile :: FilePath -> IO YiString

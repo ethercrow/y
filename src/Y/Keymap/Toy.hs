@@ -45,4 +45,9 @@ exit KEsc = WholeMatch (SyncA ExitA)
 exit _ = NoMatch
 
 printCharAction :: Char -> MatchResult Action
-printCharAction c = WholeMatch (SyncA (StateModA (buffer . text %~ (`snoc` c))))
+printCharAction c
+    = WholeMatch . SyncA . StateModA . over buffer
+    $ (\(Buffer txt pos) ->
+        Buffer (insertAt (singleton c) pos txt)
+               (succ pos))
+

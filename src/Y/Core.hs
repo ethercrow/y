@@ -18,6 +18,7 @@ import Y.Config
 import Y.CoreState
 import Y.Highlighter
 import Y.Keymap
+import Y.String
 
 startCore :: Config
     -> Sodium.Event InputOccurrence
@@ -25,7 +26,7 @@ startCore :: Config
 startCore config inputEvent = do
     rec
         configBehaviour <- Sodium.accum config configModEvent
-        stateBehaviour <- Sodium.accum (CoreState def) stateModEvent
+        stateBehaviour <- Sodium.accum (CoreState def def) stateModEvent
 
         let actionEvent = foldr1 Sodium.merge
                             [ (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
@@ -47,8 +48,12 @@ startCore config inputEvent = do
                              & SodiumIO.executeAsyncIO
 
             outputEvent = Sodium.merge
-                (fmap (\s -> OutputViewModel (ViewModel (s ^. buffer . text)
-                                                        (s ^. buffer . overlays)))
+                (fmap (\s -> let txt = s ^. buffer . text
+                                 pos = s ^. buffer . cursorPosition
+                             in OutputViewModel
+                                   (ViewModel txt
+                                              (Just (coordsOfPosition pos 80 txt))
+                                              (s ^. overlays)))
                     (Sodium.value stateBehaviour))
                 (fmap (const OutputExit)
                     (Sodium.filterE isExit syncActionEvent))
@@ -71,15 +76,16 @@ startCore config inputEvent = do
                                        ""
                      & fmap Sodium.filterJust
 
-        let highlighterActionEvent = textUpdates
-                                   & fmap (const
-                                        (AsyncA $ \state -> do
-                                            let (Highlighter highlight) = config ^. cfgHighlighter
-                                            overlay <- highlight (state ^. (buffer . text))
-                                            return $ SyncA (StateModA (\state' ->
-                                                        if ((==) `on` (view (buffer . text))) state state'
-                                                        then state' & (buffer . overlays) .~ [overlay]
-                                                        else state'))))
+        let highlighterActionEvent
+                = textUpdates
+                & fmap (const
+                     (AsyncA $ \state -> do
+                         let (Highlighter highlight) = config ^. cfgHighlighter
+                         overlay <- highlight (state ^. (buffer . text))
+                         return $ SyncA (StateModA (\state' ->
+                                     if ((==) `on` (view (buffer . text))) state state'
+                                     then state' & overlays .~ [overlay]
+                                     else state'))))
 
     return (outputEvent, return ())
 

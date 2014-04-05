@@ -7,7 +7,7 @@ import Y.String
 data InputOccurrence = KChar Char | KEsc | KEnter
     deriving Show
 
-data ViewModel = ViewModel YiString [BufferOverlay]
+data ViewModel = ViewModel YiString (Maybe (Int, Int)) [BufferOverlay]
     deriving Show
 
 data BufferOverlay = BufferOverlay

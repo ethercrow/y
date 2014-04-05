@@ -42,10 +42,10 @@ prop_take s i
 
 prop_drop s i
     = i >= 0 ==>
-      S.fromString (drop i s) == S.drop i (S.fromString s)
+      S.fromString (drop i s) == S.drop (S.Size (fromIntegral i)) (S.fromString s)
 
 prop_length s
-    = length s == S.length (S.fromString s)
+    = length s == fromIntegral (S.fromSize (S.length (S.fromString s)))
 
 prop_append s t
     = S.fromString (s ++ t) == S.append (S.fromString s) (S.fromString t)
@@ -63,7 +63,8 @@ prop_countNewLines s
 prop_splitAt s i
     = i >= 0 ==>
       let (x, y) = splitAt i (fromSWLON s)
-      in S.splitAt i (S.fromString (fromSWLON s)) == (S.fromString x, S.fromString y)
+      in S.splitAt (fromIntegral i) (S.fromString (fromSWLON s))
+        == (S.fromString x, S.fromString y)
 
 prop_splitAtLine_0 s
     = let r = S.fromString (fromSWLON s) in S.splitAtLine 0 r == (mempty, r)
@@ -77,7 +78,7 @@ prop_splitAtLine_1 s t
 prop_splitAtLine_i (s :: StringWithLotsOfNewlines) i
     = i >= 0 ==>
       let rq = S.fromString (fromSWLON s)
-          i' = i `rem` (1 + S.length rq)
+          i' = i `rem` (1 + S.countNewLines rq)
           (r, q) = S.splitAtLine i' rq
       in rq == r <> q
 
@@ -90,27 +91,27 @@ prop_insertAt i s t
     = i <= length t ==>
       let r = S.fromString s
           q = S.fromString t
-          rq = S.insertAt r i q
+          rq = S.insertAt r (fromIntegral i) q
       in rq == S.fromString (take i t <> s <> drop i t)
 
 prop_delete_zero i s
     = let r = S.fromString s
-          i' = i `rem` (S.length r + 1)
-      in r == S.deleteAt i' 0 r
+          i' = i `rem` (S.fromSize (S.length r) + 1)
+      in r == S.deleteAt (fromIntegral i') (S.Size 0) r
 
 prop_deleteAt i l s
     = i >= 0 && l >= 0 && not (null s) ==>
       let i' = i `rem` length s
           l' = l `rem` (length s - i')
           r = S.fromString s
-          r' = S.deleteAt i' l' r
+          r' = S.deleteAt (fromIntegral i') (S.Size (fromIntegral l')) r
       in r' == S.fromString (take i' s <> drop (i' + l') s)
 
 prop_insert_delete i s t
     = i >= 0 && not (null t) ==>
       let r = S.fromString s
           q = S.fromString t
-          i' = i `rem` length t
+          i' = i `rem` fromIntegral (length t)
           rq = S.insertAt r i' q
       in q == S.deleteAt i' (S.length r) rq
 
