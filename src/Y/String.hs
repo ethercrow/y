@@ -221,6 +221,7 @@ takeScreenful w h (YiString lines (Size size)) =
     (headLine, tailString) = case S.viewl lines of
         l S.:< tailLines
             -> (l, YiString tailLines (Size (size - 1 - fromIntegral headLineLength)))
+        S.EmptyL -> error "lines can't be empty sequence."
 
 lineDrop :: Integral i => i -> Line -> Line
 lineDrop 0 l = l
