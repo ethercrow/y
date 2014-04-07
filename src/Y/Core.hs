@@ -22,14 +22,17 @@ import Y.String
 
 startCore :: Config
     -> Sodium.Event InputOccurrence
+    -> [Action]
     -> Sodium.Reactive (Sodium.Event CoreOutput, IO ())
-startCore config inputEvent = do
+startCore config inputEvent startupActions = do
     rec
         configBehaviour <- Sodium.accum config configModEvent
         stateBehaviour <- Sodium.accum (CoreState def def) stateModEvent
+        (startupActionEvent, pushStartupAction) <- Sodium.newEvent
 
         let actionEvent = foldr1 Sodium.merge
-                            [ (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
+                            [ startupActionEvent
+                            , (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
                                             inputEvent
                                             configBehaviour)
                             , asyncActionEvent
@@ -86,6 +89,8 @@ startCore config inputEvent = do
                                      if ((==) `on` (view (buffer . text))) state state'
                                      then state' & overlays .~ [overlay]
                                      else state'))))
+
+    mapM_ pushStartupAction startupActions
 
     return (outputEvent, return ())
 
