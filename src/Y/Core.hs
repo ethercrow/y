@@ -18,6 +18,7 @@ import Y.Config
 import Y.CoreState
 import Y.Highlighter
 import Y.Keymap
+import Y.Mode
 import Y.String
 
 startCore :: Config
@@ -83,7 +84,7 @@ startCore config inputEvent startupActions = do
                 = textUpdates
                 & fmap (const
                      (AsyncA $ \state -> do
-                         let (Highlighter highlight) = config ^. cfgHighlighter
+                         let (Highlighter highlight) = head (config ^. cfgModes) ^. modeHighlighter
                          overlay <- highlight (state ^. (buffer . text))
                          return $ SyncA (StateModA (\state' ->
                                      if ((==) `on` (view (buffer . text))) state state'
