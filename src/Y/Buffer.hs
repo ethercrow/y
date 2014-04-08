@@ -12,7 +12,7 @@ import Y.String
 data Buffer = Buffer
     { _text :: YiString
     , _cursorPosition :: Position 
-    }
+    } deriving Eq
 
 makeLenses ''Buffer
 

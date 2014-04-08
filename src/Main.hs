@@ -16,7 +16,9 @@ import Y.Core
 import Y.CoreState
 import Y.Keymap
 import Y.Frontend
-import Y.Highlighter.Diff
+import Y.Mode.Diff
+import Y.Mode.Erlang
+import Y.Mode.Fundamental
 import qualified Y.String as S
 
 import Y.Frontend.Toy
@@ -28,8 +30,9 @@ main :: IO ()
 main = do
     maybeFilename <- listToMaybe <$> getArgs
     fe <- startVtyFrontend
+    -- fe <- startToyFrontend
 
-    let config = Config toyKeymap diffHighlighter
+    let config = Config toyKeymap [erlangMode, fundamentalMode, diffMode]
         inputEvent = fe ^. feInputEvent
 
     (viewModels, shutdown) <- case maybeFilename of

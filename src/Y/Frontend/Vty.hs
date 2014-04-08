@@ -1,13 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Y.Frontend.Vty where
 
+import Control.Applicative
 import Control.Concurrent
 import Control.Lens
 import Control.Monad (forever, void)
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Encoding as TE
+import qualified Data.Vector as V
 import qualified FRP.Sodium as Sodium
 import qualified Graphics.Vty as Vty
-import qualified Data.Vector as V
 
 import Y.Common
 import Y.Frontend
@@ -16,7 +20,7 @@ import qualified Y.String as S
 startVtyFrontend :: IO Frontend
 startVtyFrontend = do
     (inputEvent, pushInput) <- Sodium.sync Sodium.newEvent
-    vty <- Vty.mkVty
+    vty <- Vty.mkVty (Vty.Config 0)
 
     let mainLoop outputEvent = do
             outputMVar <- newEmptyMVar
@@ -26,7 +30,7 @@ startVtyFrontend = do
             void . forkIO $ do
                 putStrLn "Started input thread"
                 forever $ do
-                    vtyInput <- Vty.next_event vty
+                    vtyInput <- Vty.nextEvent vty
 
                     let minput = convertInput vtyInput
 
@@ -48,8 +52,7 @@ startVtyFrontend = do
 
 render :: Vty.Vty -> ViewModel -> IO ()
 render vty (ViewModel s mcursor overlays) = do
-    let uncoloredLines = lines (S.toString s)
-                       & map (\x -> if null x then " " else x)
+    let uncoloredLines = map (`S.snoc` ' ') $ S.splitOnNewLines s
 
         coloredLines = foldr applyOverlay
                              (zip uncoloredLines (repeat Default))
@@ -59,16 +62,16 @@ render vty (ViewModel s mcursor overlays) = do
                             -> case ocolor of
                                 Default -> (l, color)
                                 _ -> (l, ocolor))
-                      (V.toList los)
+                      (V.toList los ++ repeat (LineOverlay Default))
 
         image = coloredLines
-              & map (\(x, color) -> Vty.string (colorToAttr color) x)
-              & Vty.vert_cat
+              & map (\(x, color) -> vtyYString (colorToAttr color) x)
+              & Vty.vertCat
         cursor = case mcursor of
             Nothing -> Vty.NoCursor
             Just (x, y) -> Vty.Cursor (fromIntegral y) (fromIntegral x)
-        background = Vty.Background ' ' Vty.def_attr
-        picture = Vty.Picture cursor image background
+        background = Vty.Background ' ' Vty.defAttr
+        picture = Vty.Picture cursor [image] background
 
     Vty.update vty picture
     Vty.refresh vty
@@ -76,10 +79,13 @@ render vty (ViewModel s mcursor overlays) = do
 convertInput :: Vty.Event -> Maybe InputOccurrence
 convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
 convertInput (Vty.EvKey Vty.KEnter []) = Just KEnter
-convertInput (Vty.EvKey (Vty.KASCII c) []) = Just (KChar c)
+convertInput (Vty.EvKey (Vty.KChar c) []) = Just (KChar c)
 convertInput _ = Nothing
 
 colorToAttr :: Color -> Vty.Attr
-colorToAttr Default = Vty.def_attr
-colorToAttr Red = Vty.with_fore_color Vty.def_attr Vty.red
-colorToAttr Green = Vty.with_fore_color Vty.def_attr Vty.green
+colorToAttr Default = Vty.defAttr
+colorToAttr Red = Vty.withForeColor Vty.defAttr Vty.red
+colorToAttr Green = Vty.withForeColor Vty.defAttr Vty.green
+
+vtyYString :: Vty.Attr -> S.YiString -> Vty.Image
+vtyYString attr = Vty.text attr . S.toLazyText

@@ -7,8 +7,9 @@ module Y.Core
 
 import Control.Applicative
 import Control.Lens hiding (Action)
+import Control.Monad
 import Data.Default
-import Data.Function (on)
+import Data.Monoid
 import qualified FRP.Sodium as Sodium
 import qualified FRP.Sodium.IO as SodiumIO
 
@@ -16,8 +17,9 @@ import Y.Buffer
 import Y.Common
 import Y.Config
 import Y.CoreState
-import Y.Highlighter
 import Y.Keymap
+import Y.Mode
+import Y.SodiumUtils
 import Y.String
 
 startCore :: Config
@@ -26,69 +28,42 @@ startCore :: Config
     -> Sodium.Reactive (Sodium.Event CoreOutput, IO ())
 startCore config inputEvent startupActions = do
     rec
-        configBehaviour <- Sodium.accum config configModEvent
-        stateBehaviour <- Sodium.accum (CoreState def def) stateModEvent
+        let bufferBehavior = fmap (view buffer) stateBehavior
+            modeBehavior = head . view cfgModes <$> configBehavior
+            modeOutputBehaviorAction :: Sodium.Behavior (Sodium.Reactive ModeOutput)
+            modeOutputBehaviorAction = modeBehavior <*> pure bufferBehavior
+            modeOutputEvent :: Sodium.Event ModeOutput
+            modeOutputEvent = Sodium.execute $ Sodium.value modeOutputBehaviorAction
+            modeActionEvent :: Sodium.Event Action
+        modeActionEvent <- Sodium.switchE <$> Sodium.hold mempty (fmap (view moActionEvent) modeOutputEvent)
+
+        configBehavior <- Sodium.accum config configModEvent
+        stateBehavior <- Sodium.accum (CoreState def def) stateModEvent
         (startupActionEvent, pushStartupAction) <- Sodium.newEvent
 
-        let actionEvent = foldr1 Sodium.merge
-                            [ startupActionEvent
-                            , (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
-                                            inputEvent
-                                            configBehaviour)
-                            , asyncActionEvent
-                            , highlighterActionEvent
-                            ]
+        let actionEvent = mconcat
+                [ startupActionEvent
+                , (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
+                                   inputEvent
+                                   configBehavior)
+                , asyncActionEvent
+                , modeActionEvent
+                ]
 
-            syncActionEvent = actionEvent
-                            & Sodium.filterE isSync
-                            & fmap (\(SyncA x) -> x)
+            syncActionEvent = pickSync actionEvent
 
             asyncActionEvent = actionEvent
                              & Sodium.filterE (not . isSync)
                              & fmap (\(AsyncA x) -> do
-                                        currentState <- Sodium.sync $ Sodium.sample stateBehaviour
+                                        currentState <- Sodium.sync $ Sodium.sample stateBehavior
                                         x currentState)
                              & SodiumIO.executeAsyncIO
 
-            outputEvent = Sodium.merge
-                (fmap (\s -> let txt = s ^. buffer . text
-                                 pos = s ^. buffer . cursorPosition
-                             in OutputViewModel
-                                   (ViewModel txt
-                                              (Just (coordsOfPosition pos 80 txt))
-                                              (s ^. overlays)))
-                    (Sodium.value stateBehaviour))
-                (fmap (const OutputExit)
-                    (Sodium.filterE isExit syncActionEvent))
+            showableOutputEvent = makeOutput <$> Sodium.value stateBehavior
 
-            configModEvent = Sodium.filterJust
-                           $ fmap (\action -> case action of
-                                        KeymapModA f -> Just (over cfgKeymap f)
-                                        _ -> Nothing)
-                                  syncActionEvent
-
-            stateModEvent = Sodium.filterJust
-                          $ fmap (\action -> case action of
-                                        StateModA f -> Just f
-                                        _ -> Nothing)
-                                 syncActionEvent
-
-        textUpdates <- Sodium.updates (view (buffer . text) <$> stateBehaviour)
-                     & Sodium.collectE (\curr prev -> ( if curr /= prev then Just curr else Nothing
-                                                      , curr))
-                                       ""
-                     & fmap Sodium.filterJust
-
-        let highlighterActionEvent
-                = textUpdates
-                & fmap (const
-                     (AsyncA $ \state -> do
-                         let (Highlighter highlight) = config ^. cfgHighlighter
-                         overlay <- highlight (state ^. (buffer . text))
-                         return $ SyncA (StateModA (\state' ->
-                                     if ((==) `on` (view (buffer . text))) state state'
-                                     then state' & overlays .~ [overlay]
-                                     else state'))))
+            outputEvent = showableOutputEvent <> (OutputExit <$ Sodium.filterE isExit syncActionEvent)
+            configModEvent = pickConfigMod syncActionEvent
+            stateModEvent = pickStateMod syncActionEvent
 
     mapM_ pushStartupAction startupActions
 
@@ -97,3 +72,27 @@ startCore config inputEvent startupActions = do
 isExit :: SyncAction -> Bool
 isExit ExitA = True
 isExit _ = False
+
+-- TODO: Is there a way to generalize these functions?
+pickConfigMod :: Sodium.Event SyncAction -> Sodium.Event (Config -> Config)
+pickConfigMod
+    = Sodium.filterJust
+    . fmap (\action -> case action of
+        KeymapModA f -> Just (over cfgKeymap f)
+        _ -> Nothing)
+
+pickStateMod :: Sodium.Event SyncAction -> Sodium.Event (CoreState -> CoreState)
+pickStateMod
+    = Sodium.filterJust
+    . fmap (\action -> case action of
+        StateModA f -> Just f
+        _ -> Nothing)
+
+pickSync :: Sodium.Event Action -> Sodium.Event SyncAction
+pickSync = fmap (\(SyncA x) -> x) . Sodium.filterE isSync
+
+makeOutput :: CoreState -> CoreOutput
+makeOutput (CoreState b overlays)
+    = OutputViewModel (ViewModel txt (Just (coordsOfPosition pos 80 txt)) overlays)
+    where txt = b ^. text
+          pos = b ^. cursorPosition
