@@ -105,3 +105,10 @@ benchmark bench-string
     , text >= 0.11
     , vector
     , criterion
+
+executable diagrams
+  main-is: CoreDiagram.hs
+  build-depends:
+      diagrams-lib
+    , diagrams-svg
+  hs-source-dirs: doc/diagrams-src
