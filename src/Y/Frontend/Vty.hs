@@ -77,7 +77,6 @@ render vty (ViewModel ls mcursor overlays) = do
         picture = Vty.Picture cursor [image] background
 
     Vty.update vty picture
-    Vty.refresh vty
 
 convertInput :: Vty.Event -> Maybe InputOccurrence
 convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
