@@ -6,10 +6,18 @@ import qualified Data.Vector as V
 
 import Y.String
 
-data InputOccurrence = KChar Char | KEsc | KEnter
+data InputOccurrence
+    = KChar Char
+    | KEsc
+    | KEnter
+    | ViewPortResize { width :: !Int, height :: !Int }
     deriving Show
 
-data ViewModel = ViewModel YiString (Maybe (Int, Int)) [BufferOverlay]
+data ViewModel = ViewModel
+    { _vmLines :: V.Vector YiString
+    , _vmCursor :: Maybe (Int, Int)
+    , _vmOverlays :: [BufferOverlay]
+    }
     deriving (Show, Eq)
 
 data BufferOverlay = BufferOverlay
@@ -27,7 +35,7 @@ data LineOverlay = LineOverlay !Color
     deriving (Show, Eq)
 
 instance NFData LineOverlay where
-    rnf (LineOverlay c) = ()
+    rnf (LineOverlay _) = ()
 
 data Color
     = Default

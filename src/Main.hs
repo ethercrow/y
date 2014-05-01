@@ -38,7 +38,7 @@ main = do
     (viewModels, shutdown) <- case maybeFilename of
         Just filename -> do
             content <- TIO.readFile filename
-            let showTextAction = SyncA (StateModA (buffer . text .~ S.fromLazyText content))
+            let showTextAction = SyncA (StateModA (csBuffer . text .~ S.fromLazyText content))
             Sodium.sync $ startCore config inputEvent [showTextAction]
         Nothing -> Sodium.sync $ startCore config inputEvent []
 

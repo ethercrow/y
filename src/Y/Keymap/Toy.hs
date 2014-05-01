@@ -25,7 +25,7 @@ asyncChar :: InputOccurrence -> MatchResult Action
 asyncChar (KChar c) | c `elem` "xy"
     = WholeMatch . AsyncA $ \_state -> do
         threadDelay 1000000
-        return $! SyncA (StateModA (buffer . text %~ (`snoc` c)))
+        return $! SyncA (StateModA (csBuffer . text %~ (`snoc` c)))
 asyncChar _ = NoMatch
 
 anyChar :: InputOccurrence -> MatchResult Action
@@ -46,7 +46,7 @@ exit _ = NoMatch
 
 printCharAction :: Char -> MatchResult Action
 printCharAction c
-    = WholeMatch . SyncA . StateModA . over buffer
+    = WholeMatch . SyncA . StateModA . over csBuffer
     $ (\(Buffer txt pos) ->
         Buffer (insertAt (singleton c) pos txt)
                (succ pos))

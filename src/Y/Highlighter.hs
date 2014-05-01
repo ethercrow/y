@@ -7,8 +7,6 @@ import Control.Lens hiding (Action)
 import Control.Monad
 import qualified FRP.Sodium as Sodium
 
-import System.IO
-
 import Y.Buffer
 import Y.Common
 import Y.CoreState
@@ -21,11 +19,11 @@ newtype Highlighter = Highlighter (YiString -> IO BufferOverlay)
 asyncHighlightAction :: Highlighter -> Action
 asyncHighlightAction (Highlighter h)
     = AsyncA $ \state -> do
-        let txt = state ^. buffer . text
+        let txt = state ^. csBuffer . text
         o <- h txt
         return $! SyncA $ StateModA $ \state' ->
-            if state' ^. buffer . text == txt
-            then state' & overlays .~ [o]
+            if state' ^. csBuffer . text == txt
+            then state' & csOverlays .~ [o]
             else state'
 
 highlightEventForBuffer :: Sodium.Behavior Buffer -> Highlighter -> Sodium.Reactive (Sodium.Event Action)
@@ -45,10 +43,10 @@ highlightEventForBuffer bufferBehavior (Highlighter h) = do
                 overlay <- force <$> h (b ^. text)
                 Sodium.sync $ do
                     pushAction (SyncA (StateModA (\state ->
-                                if state ^. buffer == b
-                                then state & overlays .~ [overlay]
+                                if state ^. csBuffer == b
+                                then state & csOverlays .~ [overlay]
                                 else state)))
                     pushAvailable True
 
-    Sodium.listen bufs highlightWhenAvailable
+    _ <- Sodium.listen bufs highlightWhenAvailable
     return actionEvent

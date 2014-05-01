@@ -1,14 +1,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Y.Frontend.Vty where
 
-import Control.Applicative
 import Control.Concurrent
 import Control.Lens
 import Control.Monad (forever, void)
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Encoding as TE
+import Data.Monoid
 import qualified Data.Vector as V
 import qualified FRP.Sodium as Sodium
 import qualified Graphics.Vty as Vty
@@ -51,21 +50,25 @@ startVtyFrontend = do
     return $! Frontend inputEvent mainLoop
 
 render :: Vty.Vty -> ViewModel -> IO ()
-render vty (ViewModel s mcursor overlays) = do
-    let uncoloredLines = map (`S.snoc` ' ') $ S.splitOnNewLines s
+render vty (ViewModel ls mcursor overlays) = do
+    let uncoloredLines = V.map (`S.snoc` ' ') ls
 
         coloredLines = foldr applyOverlay
-                             (zip uncoloredLines (repeat Default))
+                             (V.map (, Default) uncoloredLines)
                              overlays
-        applyOverlay (BufferOverlay _ los)
-            = zipWith (\(LineOverlay ocolor) (l, color)
+        applyOverlay :: BufferOverlay -> V.Vector (S.YiString, Color) -> V.Vector (S.YiString, Color)
+        applyOverlay (BufferOverlay _ los) clines
+            = V.zipWith (\(LineOverlay ocolor) (l, color)
                             -> case ocolor of
                                 Default -> (l, color)
                                 _ -> (l, ocolor))
-                      (V.toList los ++ repeat (LineOverlay Default))
+                      (los <> V.replicate (V.length clines - V.length los)
+                                          (LineOverlay Default))
+                      clines
 
         image = coloredLines
-              & map (\(x, color) -> vtyYString (colorToAttr color) x)
+              & V.map (\(x, color) -> vtyYString (colorToAttr color) x)
+              & V.toList
               & Vty.vertCat
         cursor = case mcursor of
             Nothing -> Vty.NoCursor

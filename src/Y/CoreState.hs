@@ -8,8 +8,8 @@ import Y.Buffer
 import Y.Common
 
 data CoreState = CoreState
-    { _buffer :: Buffer
-    , _overlays :: [BufferOverlay]
+    { _csBuffer :: Buffer
+    , _csOverlays :: [BufferOverlay]
     } deriving Eq
 
 makeLenses ''CoreState

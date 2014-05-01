@@ -2,14 +2,11 @@
 {-# LANGUAGE LambdaCase #-}
 module Y.Mode.Diff where
 
-import Control.Applicative
 import Control.Lens
-import qualified FRP.Sodium as Sodium
 import qualified Data.Vector as V
 
 import Y.Common
 import Y.Highlighter
-import Y.Keymap
 import Y.Mode
 import qualified Y.String as S
 

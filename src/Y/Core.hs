@@ -2,25 +2,21 @@
 {-# LANGUAGE RecursiveDo #-}
 module Y.Core
     ( startCore
-    , CoreOutput(..)
     ) where
 
 import Control.Applicative
 import Control.Lens hiding (Action)
-import Control.Monad
 import Data.Default
 import Data.Monoid
 import qualified FRP.Sodium as Sodium
 import qualified FRP.Sodium.IO as SodiumIO
 
-import Y.Buffer
 import Y.Common
 import Y.Config
 import Y.CoreState
 import Y.Keymap
 import Y.Mode
-import Y.SodiumUtils
-import Y.String
+import Y.Output
 
 startCore :: Config
     -> Sodium.Event InputOccurrence
@@ -28,7 +24,7 @@ startCore :: Config
     -> Sodium.Reactive (Sodium.Event CoreOutput, IO ())
 startCore config inputEvent startupActions = do
     rec
-        let bufferBehavior = fmap (view buffer) stateBehavior
+        let bufferBehavior = fmap (view csBuffer) stateBehavior
             modeBehavior = head . view cfgModes <$> configBehavior
             modeOutputBehaviorAction :: Sodium.Behavior (Sodium.Reactive ModeOutput)
             modeOutputBehaviorAction = modeBehavior <*> pure bufferBehavior
@@ -90,9 +86,3 @@ pickStateMod
 
 pickSync :: Sodium.Event Action -> Sodium.Event SyncAction
 pickSync = fmap (\(SyncA x) -> x) . Sodium.filterE isSync
-
-makeOutput :: CoreState -> CoreOutput
-makeOutput (CoreState b overlays)
-    = OutputViewModel (ViewModel txt (Just (coordsOfPosition pos 80 txt)) overlays)
-    where txt = b ^. text
-          pos = b ^. cursorPosition

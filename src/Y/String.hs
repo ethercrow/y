@@ -19,6 +19,7 @@ module Y.String
     , splitAt
     , splitAtLine
     , splitOnNewLines
+    , wrappedLinesForWidth
     , countNewLines
     , insertAt
     , deleteAt
@@ -150,6 +151,9 @@ concat = mconcat
 length :: YiString -> Size
 length (YiString _lines size) = size
 
+oneliner :: Line -> YiString
+oneliner l = YiString (S.singleton l) (lineSize l)
+
 findSplitBoundary :: Int64 -> S.Seq Line -> (Int64, Int)
 findSplitBoundary n64 = go 0 0 . toList
     where go !lengthAcc !index [] = (lengthAcc, index)
@@ -192,6 +196,11 @@ splitOnNewLines :: (Applicative f, Monoid (f YiString)) => YiString -> f YiStrin
 splitOnNewLines (YiString lines _) = foldMap go lines
     where go line = pure (YiString (S.singleton line) (lineSize line))
 
+wrappedLinesForWidth :: (Applicative f, Monoid (f Line), Integral i)
+    => i -> YiString -> f YiString
+wrappedLinesForWidth w (YiString lines _)
+    = oneliner <$> foldMap (lineSplitAtEvery w) lines
+
 countNewLines :: YiString -> Int
 countNewLines = pred . fromIntegral . S.length . fromYiString
 
@@ -200,20 +209,20 @@ reverseLine (ShortLine t size) = ShortLine (TL.reverse t) size
 reverseLine (LongLine chunks size) = LongLine (fmap TL.reverse (S.reverse chunks)) size
 
 reverse :: YiString -> YiString
-reverse (YiString lines size) = YiString (fmap reverseLine $ S.reverse lines) size
+reverse (YiString lines size) = YiString (reverseLine <$> S.reverse lines) size
 
 take :: Integral i => i -> YiString -> YiString
 take n = fst . splitAt (fromIntegral n)
 
 takeScreenful :: Int -> Int -> YiString -> YiString
 takeScreenful w h (YiString _lines (Size size)) | w == 0 || h == 0 || size == 0 = mempty
-takeScreenful w h (YiString lines (Size size)) =
-    if headLineLength >= w * h
-    then YiString (S.singleton (lineTake (w * h) headLine)) (Size (fromIntegral (w * h)))
-    else if h - headLineHeight > 0
-    then YiString (S.fromList [headLine, mempty]) (Size (fromIntegral (succ headLineLength)))
-         <> takeScreenful w (h - headLineHeight) tailString
-    else YiString (S.singleton headLine) headLineSize
+takeScreenful w h (YiString lines (Size size))
+    | headLineLength >= w * h
+        = YiString (S.singleton (lineTake (w * h) headLine)) (Size (fromIntegral (w * h)))
+    | h - headLineHeight > 0
+        = YiString (S.fromList [headLine, mempty]) (Size (fromIntegral (succ headLineLength)))
+        <> takeScreenful w (h - headLineHeight) tailString
+    | otherwise =  YiString (S.singleton headLine) headLineSize
     where
     headLineHeight = max 1 (headLineLength `div` w + signum (headLineLength `rem` w))
     headLineLength = fromIntegral $ fromSize headLineSize
@@ -237,6 +246,12 @@ lineTake :: Integral i => i -> Line -> Line
 lineTake 0 _ = mempty
 lineTake n l | fromSize (lineSize l) < fromIntegral n = l
 lineTake n l = mkLine' (TL.take (fromIntegral n) (lineToLazyText l)) (Size (fromIntegral n))
+
+lineSplitAtEvery :: (Applicative f, Monoid (f Line), Integral i) => i -> Line -> f Line
+lineSplitAtEvery i l
+    | fromSize (lineSize l) <= fromIntegral i
+    = pure l
+lineSplitAtEvery i l = pure (lineTake i l) <> lineSplitAtEvery i (lineDrop i l)
 
 drop :: Size -> YiString -> YiString
 drop (Size n) = snd . splitAt n 
