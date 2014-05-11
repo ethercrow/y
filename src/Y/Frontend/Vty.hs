@@ -87,6 +87,7 @@ render vty (ViewModel ls mcursor overlays) = do
     Vty.update vty picture
 
 convertInput :: Vty.Event -> Maybe InputOccurrence
+convertInput (Vty.EvResize w h) = Just (ViewportResize w h)
 convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
 convertInput (Vty.EvKey Vty.KEnter []) = Just KEnter
 convertInput (Vty.EvKey Vty.KUp []) = Just KUp

@@ -11,7 +11,7 @@ data InputOccurrence
     | KEsc
     | KEnter
     | KUp | KDown | KRight | KLeft
-    | ViewPortResize { width :: !Int, height :: !Int }
+    | ViewportResize { width :: !Int, height :: !Int }
     deriving Show
 
 data ViewModel = ViewModel

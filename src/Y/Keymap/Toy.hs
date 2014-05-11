@@ -15,13 +15,18 @@ import Y.MatchResult
 toyKeymap :: Keymap
 toyKeymap = Keymap bindings KeymapState
     where bindings =
-            [ asyncChar
+            [ resize
+            , asyncChar
             , bindingThatChangesBindings
             , enterChar
             , arrow
             , anyChar
             , exit
             ]
+
+resize :: InputOccurrence -> MatchResult Action
+resize (ViewportResize w h) = WholeMatch (SyncA (StateModA (csViewportSize .~ (w, h))))
+resize _ = NoMatch
 
 bindingThatChangesBindings :: InputOccurrence -> MatchResult Action
 bindingThatChangesBindings (KChar 'z')

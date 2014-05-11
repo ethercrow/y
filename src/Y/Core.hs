@@ -34,7 +34,7 @@ startCore config inputEvent startupActions = do
         modeActionEvent <- Sodium.switchE <$> Sodium.hold mempty (fmap (view moActionEvent) modeOutputEvent)
 
         configBehavior <- Sodium.accum config configModEvent
-        stateBehavior <- Sodium.accum (CoreState def def) stateModEvent
+        stateBehavior <- Sodium.accum (CoreState def def (80, 25)) stateModEvent
         (startupActionEvent, pushStartupAction) <- Sodium.newEvent
 
         let actionEvent = mconcat

@@ -8,7 +8,7 @@ import Y.CoreState
 import Y.String
 
 makeOutput :: CoreState -> CoreOutput
-makeOutput (CoreState b overlays)
+makeOutput (CoreState b overlays viewportSize)
     = OutputViewModel (ViewModel textLines cursor (fmap wrapOverlayLines overlays))
     where
         cursor = Just (over both fromIntegral
@@ -17,4 +17,4 @@ makeOutput (CoreState b overlays)
         txt = takeScreenful w h (b ^. text)
         pos = b ^. cursorPosition
         wrapOverlayLines = id
-        (w, h) = (80, 25)
+        (w, h) = over both fromIntegral viewportSize
