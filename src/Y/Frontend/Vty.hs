@@ -16,10 +16,18 @@ import Y.Common
 import Y.Frontend
 import qualified Y.String as S
 
+vtyKeyTable :: [(String, Vty.Event)]
+vtyKeyTable =
+    [ ("\ESC[B", Vty.EvKey Vty.KUp [])
+    , ("\ESC[B", Vty.EvKey Vty.KUp [])
+    , ("\ESC[B", Vty.EvKey Vty.KUp [])
+    , ("\ESC[B", Vty.EvKey Vty.KUp [])
+    ]
+
 startVtyFrontend :: IO Frontend
 startVtyFrontend = do
     (inputEvent, pushInput) <- Sodium.sync Sodium.newEvent
-    vty <- Vty.mkVty (Vty.Config 0)
+    vty <- Vty.mkVty (Vty.Config (Just 0) Nothing vtyKeyTable)
 
     let mainLoop outputEvent = do
             outputMVar <- newEmptyMVar
@@ -81,6 +89,10 @@ render vty (ViewModel ls mcursor overlays) = do
 convertInput :: Vty.Event -> Maybe InputOccurrence
 convertInput (Vty.EvKey Vty.KEsc []) = Just KEsc
 convertInput (Vty.EvKey Vty.KEnter []) = Just KEnter
+convertInput (Vty.EvKey Vty.KUp []) = Just KUp
+convertInput (Vty.EvKey Vty.KDown []) = Just KDown
+convertInput (Vty.EvKey Vty.KRight []) = Just KRight
+convertInput (Vty.EvKey Vty.KLeft []) = Just KLeft
 convertInput (Vty.EvKey (Vty.KChar c) []) = Just (KChar c)
 convertInput _ = Nothing
 

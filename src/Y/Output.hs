@@ -11,7 +11,8 @@ makeOutput :: CoreState -> CoreOutput
 makeOutput (CoreState b overlays)
     = OutputViewModel (ViewModel textLines cursor (fmap wrapOverlayLines overlays))
     where
-        cursor = Just (coordsOfPosition pos w txt)
+        cursor = Just (over both fromIntegral
+                            (coordsOfPositionWrappingToWidth pos w txt))
         textLines = wrappedLinesForWidth w txt
         txt = takeScreenful w h (b ^. text)
         pos = b ^. cursorPosition

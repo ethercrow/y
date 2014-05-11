@@ -15,6 +15,8 @@ module Y.String
     , take, drop
     , takeScreenful
     , coordsOfPosition
+    , coordsOfPositionWrappingToWidth
+    , positionForCoords
     , cons, snoc
     , splitAt
     , splitAtLine
@@ -179,15 +181,15 @@ splitAt n (YiString lines (Size size)) =
                  lineDrop (n64 - positionAtStartOfBoundaryLine) lastLeftLine
                     <| strictlyRightPart)
 
-splitAtLine :: Int -> YiString -> (YiString, YiString)
+splitAtLine :: Int64 -> YiString -> (YiString, YiString)
 splitAtLine 0 s = (mempty, s)
-splitAtLine i s@(YiString lines _) | i >= S.length lines = (s, mempty)
+splitAtLine i s@(YiString lines _) | fromIntegral i >= S.length lines = (s, mempty)
 splitAtLine i (YiString lines _)
     = ( YiString ls' (Size (fromIntegral i) <> foldMap lineSize ls')
       , YiString rs (Size (fromIntegral (S.length rs - 1)) <> foldMap lineSize rs)
       )
-    where ls = S.take i lines
-          rs = S.drop i lines
+    where ls = S.take (fromIntegral i) lines
+          rs = S.drop (fromIntegral i) lines
           ls' = if S.length rs >= 1 || lineSize (ls ^. _last) > Size 0
                 then ls |> mempty
                 else ls
@@ -196,12 +198,12 @@ splitOnNewLines :: (Applicative f, Monoid (f YiString)) => YiString -> f YiStrin
 splitOnNewLines (YiString lines _) = foldMap go lines
     where go line = pure (YiString (S.singleton line) (lineSize line))
 
-wrappedLinesForWidth :: (Applicative f, Monoid (f Line), Integral i)
-    => i -> YiString -> f YiString
+wrappedLinesForWidth :: (Applicative f, Monoid (f Line))
+    => Int64 -> YiString -> f YiString
 wrappedLinesForWidth w (YiString lines _)
     = oneliner <$> foldMap (lineSplitAtEvery w) lines
 
-countNewLines :: YiString -> Int
+countNewLines :: YiString -> Int64
 countNewLines = pred . fromIntegral . S.length . fromYiString
 
 reverseLine :: Line -> Line
@@ -211,10 +213,10 @@ reverseLine (LongLine chunks size) = LongLine (fmap TL.reverse (S.reverse chunks
 reverse :: YiString -> YiString
 reverse (YiString lines size) = YiString (reverseLine <$> S.reverse lines) size
 
-take :: Integral i => i -> YiString -> YiString
-take n = fst . splitAt (fromIntegral n)
+take :: Int64 -> YiString -> YiString
+take n = fst . splitAt n
 
-takeScreenful :: Int -> Int -> YiString -> YiString
+takeScreenful :: Int64 -> Int64 -> YiString -> YiString
 takeScreenful w h (YiString _lines (Size size)) | w == 0 || h == 0 || size == 0 = mempty
 takeScreenful w h (YiString lines (Size size))
     | headLineLength >= w * h
@@ -232,7 +234,7 @@ takeScreenful w h (YiString lines (Size size))
             -> (l, YiString tailLines (Size (size - 1 - fromIntegral headLineLength)))
         S.EmptyL -> error "lines can't be empty sequence."
 
-lineDrop :: Integral i => i -> Line -> Line
+lineDrop :: Int64 -> Line -> Line
 lineDrop 0 l = l
 lineDrop n l | fromIntegral n >= fromSize (lineSize l) = mempty
 lineDrop n (ShortLine t (Size size))
@@ -242,12 +244,12 @@ lineDrop n l@(LongLine _chunks (Size size)) | size - fromIntegral n < maxShortLi
 lineDrop n l@(LongLine _chunks (Size size))
     = mkLine' (TL.drop (fromIntegral n) (lineToLazyText l)) (Size (size - fromIntegral n))
 
-lineTake :: Integral i => i -> Line -> Line
+lineTake :: Int64 -> Line -> Line
 lineTake 0 _ = mempty
 lineTake n l | fromSize (lineSize l) < fromIntegral n = l
 lineTake n l = mkLine' (TL.take (fromIntegral n) (lineToLazyText l)) (Size (fromIntegral n))
 
-lineSplitAtEvery :: (Applicative f, Monoid (f Line), Integral i) => i -> Line -> f Line
+lineSplitAtEvery :: (Applicative f, Monoid (f Line)) => Int64 -> Line -> f Line
 lineSplitAtEvery i l
     | fromSize (lineSize l) <= fromIntegral i
     = pure l
@@ -256,8 +258,11 @@ lineSplitAtEvery i l = pure (lineTake i l) <> lineSplitAtEvery i (lineDrop i l)
 drop :: Size -> YiString -> YiString
 drop (Size n) = snd . splitAt n 
 
-coordsOfPosition :: Position -> Int -> YiString -> (Int, Int)
-coordsOfPosition pos w (YiString lines _) = go 0 (fromIntegral pos) (toList lines)
+coordsOfPosition :: Position -> YiString -> (Int64, Int64)
+coordsOfPosition p s = coordsOfPositionWrappingToWidth p (fromSize (length s)) s
+
+coordsOfPositionWrappingToWidth :: Position -> Int64 -> YiString -> (Int64, Int64)
+coordsOfPositionWrappingToWidth pos w (YiString lines _) = go 0 (fromIntegral pos) (toList lines)
     where
         go !topOffset _p [] = (topOffset, 0)
         go !topOffset p (line : rest)
@@ -270,6 +275,9 @@ coordsOfPosition pos w (YiString lines _) = go 0 (fromIntegral pos) (toList line
                          (p - lineLength - 1)
                          rest
                  else (topOffset + p `div` w, p `rem` w)
+
+positionForCoords :: (Int64, Int64) -> YiString -> Position
+positionForCoords (y, x) s = fromIntegral x + fromSize (length (fst (splitAtLine y s)))
 
 lineSnoc :: Line -> Char -> Line
 lineSnoc (ShortLine t (Size size)) c | size > maxShortLineLength

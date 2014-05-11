@@ -14,7 +14,14 @@ import Y.MatchResult
 
 toyKeymap :: Keymap
 toyKeymap = Keymap bindings KeymapState
-    where bindings = [asyncChar, bindingThatChangesBindings, enterChar, anyChar, exit]
+    where bindings =
+            [ asyncChar
+            , bindingThatChangesBindings
+            , enterChar
+            , arrow
+            , anyChar
+            , exit
+            ]
 
 bindingThatChangesBindings :: InputOccurrence -> MatchResult Action
 bindingThatChangesBindings (KChar 'z')
@@ -39,6 +46,13 @@ anyBigChar _ = NoMatch
 enterChar :: InputOccurrence -> MatchResult Action
 enterChar KEnter = printCharAction '\n'
 enterChar _ = NoMatch
+
+arrow :: InputOccurrence -> MatchResult Action
+arrow KLeft = WholeMatch (SyncA (StateModA (csBuffer . cursorPosition %~ pred)))
+arrow KRight = WholeMatch (SyncA (StateModA (csBuffer . cursorPosition %~ succ)))
+arrow KUp = WholeMatch (SyncA (StateModA (csBuffer %~ cursorUp)))
+arrow KDown = WholeMatch (SyncA (StateModA (csBuffer %~ cursorDown)))
+arrow _ = NoMatch
 
 exit :: InputOccurrence -> MatchResult Action
 exit KEsc = WholeMatch (SyncA ExitA)

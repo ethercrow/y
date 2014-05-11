@@ -10,6 +10,7 @@ data InputOccurrence
     = KChar Char
     | KEsc
     | KEnter
+    | KUp | KDown | KRight | KLeft
     | ViewPortResize { width :: !Int, height :: !Int }
     deriving Show
 
