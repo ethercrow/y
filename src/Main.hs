@@ -35,12 +35,14 @@ main = do
     let config = Config toyKeymap [erlangMode, fundamentalMode, diffMode]
         inputEvent = fe ^. feInputEvent
 
-    (viewModels, shutdown) <- case maybeFilename of
+    startActions <- case maybeFilename of
         Just filename -> do
             content <- TIO.readFile filename
             let showTextAction = SyncA (StateModA (csBuffer . text .~ S.fromLazyText content))
-            Sodium.sync $ startCore config inputEvent [showTextAction]
-        Nothing -> Sodium.sync $ startCore config inputEvent []
+            return [showTextAction]
+        Nothing -> return []
+
+    (viewModels, shutdown) <- Sodium.sync $ startCore config inputEvent startActions
 
     putStrLn "Proceeding to frontend's main loop"
     (fe ^. feMainLoop) viewModels

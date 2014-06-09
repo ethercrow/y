@@ -7,6 +7,7 @@ module Y.Frontend.Vty where
 import Control.Concurrent
 import Control.Lens
 import Control.Monad (forever, void)
+import Data.Default
 import Data.Monoid
 import qualified Data.Vector as V
 import qualified FRP.Sodium as Sodium
@@ -16,18 +17,19 @@ import Y.Common
 import Y.Frontend
 import qualified Y.String as S
 
-vtyKeyTable :: [(String, Vty.Event)]
+vtyKeyTable :: [(Maybe String, String, Vty.Event)]
 vtyKeyTable =
-    [ ("\ESC[B", Vty.EvKey Vty.KUp [])
-    , ("\ESC[B", Vty.EvKey Vty.KUp [])
-    , ("\ESC[B", Vty.EvKey Vty.KUp [])
-    , ("\ESC[B", Vty.EvKey Vty.KUp [])
+    [ (Nothing, "\ESC[B", Vty.EvKey Vty.KUp [])
+    , (Nothing, "\ESC[B", Vty.EvKey Vty.KUp [])
+    , (Nothing, "\ESC[B", Vty.EvKey Vty.KUp [])
+    , (Nothing, "\ESC[B", Vty.EvKey Vty.KUp [])
     ]
 
 startVtyFrontend :: IO Frontend
 startVtyFrontend = do
     (inputEvent, pushInput) <- Sodium.sync Sodium.newEvent
-    vty <- Vty.mkVty (Vty.Config (Just 0) Nothing vtyKeyTable)
+    vty <- Vty.mkVty (def { Vty.vtime = Just 0
+                          , Vty.inputMap = vtyKeyTable})
 
     let mainLoop outputEvent = do
             outputMVar <- newEmptyMVar
