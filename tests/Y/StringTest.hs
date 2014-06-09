@@ -38,7 +38,7 @@ prop_null s
 
 prop_take s i
     = i >= 0 ==>
-      S.fromString (take i s) == S.take i (S.fromString s)
+      S.fromString (take i s) == S.take (fromIntegral i) (S.fromString s)
 
 prop_drop s i
     = i >= 0 ==>
@@ -58,7 +58,7 @@ prop_concat ss
     = S.fromString (concat ss) == S.concat (map S.fromString ss)
 
 prop_countNewLines s
-    = length (filter (== '\n') s) == S.countNewLines (S.fromString s)
+    = fromIntegral (length (filter (== '\n') s)) == S.countNewLines (S.fromString s)
 
 prop_splitAt s i
     = i >= 0 ==>
@@ -172,19 +172,19 @@ case_takeScreenful_4_4'
     = S.takeScreenful 4 4 "abcd12345678\nfoob\nquux" @?= "abcd12345678\nfoob"
 
 case_coordsOfPosition_1
-    = S.coordsOfPosition 0 3 "ab\ncd\nef" @?= (0, 0)
+    = S.coordsOfPositionWrappingToWidth 0 3 "ab\ncd\nef" @?= (0, 0)
 
 case_coordsOfPosition_2
-    = S.coordsOfPosition 1 3 "ab\ncd\nef" @?= (0, 1)
+    = S.coordsOfPositionWrappingToWidth 1 3 "ab\ncd\nef" @?= (0, 1)
 
 case_coordsOfPosition_3
-    = S.coordsOfPosition 2 3 "ab\ncd\nef" @?= (0, 2)
+    = S.coordsOfPositionWrappingToWidth 2 3 "ab\ncd\nef" @?= (0, 2)
 
 case_coordsOfPosition_4
-    = S.coordsOfPosition 3 3 "ab\ncd\nef" @?= (1, 0)
+    = S.coordsOfPositionWrappingToWidth 3 3 "ab\ncd\nef" @?= (1, 0)
 
 case_coordsOfPosition_5
-    = S.coordsOfPosition 3 3 "abcdef" @?= (1, 0)
+    = S.coordsOfPositionWrappingToWidth 3 3 "abcdef" @?= (1, 0)
 
 newtype StringWithLotsOfNewlines = StringWithLotsOfNewlines { fromSWLON :: String }
     deriving Show
