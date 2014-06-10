@@ -25,6 +25,7 @@ import Y.Frontend.Toy
 import Y.Frontend.Vty
 
 import Y.Keymap.Toy
+import Y.Keymap.Emacs
 
 main :: IO ()
 main = do

@@ -37,11 +37,20 @@ startCore config inputEvent startupActions = do
         stateBehavior <- Sodium.accum (CoreState def def (80, 25)) stateModEvent
         (startupActionEvent, pushStartupAction) <- Sodium.newEvent
 
-        let actionEvent = mconcat
+        let userActionEventFromDynamicKeymap :: Sodium.Event (Sodium.Event Action)
+            userActionEventFromDynamicKeymap =
+                Sodium.execute (Sodium.value (fromKeymap <$> keymapBehavior <*> pure inputEvent))
+        userActionEventFromInitialKeymap <-
+            let Keymap k = config ^. cfgKeymap
+            in k inputEvent
+        userActionEvent <- Sodium.switchE
+                        <$> Sodium.hold userActionEventFromInitialKeymap
+                                        userActionEventFromDynamicKeymap
+
+        let keymapBehavior = fmap (view cfgKeymap) configBehavior
+            actionEvent = mconcat
                 [ startupActionEvent
-                , (Sodium.snapshot (\i conf -> applyKeymap i (conf ^. cfgKeymap))
-                                   inputEvent
-                                   configBehavior)
+                , userActionEvent
                 , asyncActionEvent
                 , modeActionEvent
                 ]

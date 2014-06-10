@@ -30,27 +30,19 @@ instance Show SyncAction where
     show (KeymapModA _) = "KeymapModA"
     show ExitA = "ExitA"
 
-data KeymapState = KeymapState
-
-type EventString = YiString
-
-type KeymapBinding = (InputOccurrence -> MatchResult Action)
+type Binding = InputOccurrence -> MatchResult Action
 
 data Keymap = Keymap
-    { kmBindings :: [KeymapBinding]
-    , kmState :: KeymapState
-    }
+    { fromKeymap :: Sodium.Event InputOccurrence -> Sodium.Reactive (Sodium.Event Action) }
 
-selectBinding :: InputOccurrence -> [KeymapBinding] -> MatchResult Action
+selectBinding :: InputOccurrence -> [Binding] -> MatchResult Action
 selectBinding input = asum . fmap ($ input)
 
-applyKeymap :: InputOccurrence -> Keymap -> Action
-applyKeymap i (Keymap bindings _) =
-    case selectBinding i bindings of
-        WholeMatch action -> action
-        _ -> SyncA (StateModA id)
+mkStatelessKeymap :: [Binding] -> Keymap
+mkStatelessKeymap bindings = Keymap
+    $ return
+    . Sodium.filterJust
+    . fmap (\i -> case selectBinding i bindings of
+                WholeMatch action -> Just action
+                _ -> Nothing)
 
-fromKeymap :: Keymap
-    -> Sodium.Event InputOccurrence
-    -> Sodium.Reactive (Sodium.Event Action)
-fromKeymap = undefined
