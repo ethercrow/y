@@ -6,7 +6,7 @@ module Y.StringTest where
 
 import Test.HUnit
 import Test.QuickCheck
-import Test.Tasty (TestTree, testGroup)
+import Test.Tasty (TestTree)
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.Tasty.TH
@@ -58,7 +58,7 @@ prop_concat ss
     = S.fromString (concat ss) == S.concat (map S.fromString ss)
 
 prop_countNewLines s
-    = fromIntegral (length (filter (== '\n') s)) == S.countNewLines (S.fromString s)
+    = length (filter (== '\n') s) == fromIntegral (S.countNewLines (S.fromString s))
 
 prop_splitAt s i
     = i >= 0 ==>
