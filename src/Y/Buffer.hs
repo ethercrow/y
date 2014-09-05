@@ -6,6 +6,8 @@ module Y.Buffer where
 import Control.Lens
 import Control.Lens.TH
 import Data.Default
+import Data.Group
+import Data.Monoid
 import qualified Data.Vector as V
 
 import qualified Y.String as S
@@ -26,6 +28,7 @@ data BufferUpdate
     | Delete S.YiString
     | CursorFromTo S.Position S.Position
     | Nop
+<<<<<<< Updated upstream
     deriving (Show, Eq)
 
 cursorUp :: Buffer -> BufferUpdate
@@ -33,6 +36,26 @@ cursorUp (Buffer string cursor)
     = if y > 0
       then CursorFromTo cursor (S.positionForCoords (pred y, 0) string)
       else Nop
+=======
+
+instance Monoid BufferUpdate where
+    mempty = Nop
+    mappend x Nop = x
+    mappend Nop x = x
+    mappend (Insert s) (Insert t) = Insert (mappend s t)
+    mappend (Composite xs) (Composite ys) = Composite (mappend xs ys)
+    mappend x y = Composite (V.fromList [x, y])
+
+instance Group BufferUpdate where
+    invert Nop = Nop
+    invert (Insert s) = Delete s
+    invert (Delete s) = Insert s
+    invert (CursorFromTo x y) = CursorFromTo y x
+    invert (Composite xs) = Composite (V.reverse (fmap invert xs))
+
+cursorUp :: Buffer -> Buffer
+cursorUp (Buffer string cursor) = Buffer string cursor'
+>>>>>>> Stashed changes
     where
         (y, x) = S.coordsOfPosition cursor string
 
