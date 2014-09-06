@@ -47,10 +47,10 @@ enterChar KEnter = printCharAction '\n'
 enterChar _ = NoMatch
 
 arrow :: InputOccurrence -> MatchResult Action
-arrow KLeft = WholeMatch (SyncA (StateModA (csBuffer . cursorPosition %~ pred)))
-arrow KRight = WholeMatch (SyncA (StateModA (csBuffer . cursorPosition %~ succ)))
-arrow KUp = WholeMatch (SyncA (StateModA (csBuffer %~ cursorUp)))
-arrow KDown = WholeMatch (SyncA (StateModA (csBuffer %~ cursorDown)))
+-- arrow KLeft = WholeMatch (SyncA (StateModA (csBuffer . cursorPosition %~ pred)))
+-- arrow KRight = WholeMatch (SyncA (StateModA (csBuffer . cursorPosition %~ succ)))
+-- arrow KUp = WholeMatch (SyncA (StateModA (csBuffer %~ cursorUp)))
+-- arrow KDown = WholeMatch (SyncA (StateModA (csBuffer %~ cursorDown)))
 arrow _ = NoMatch
 
 exit :: InputOccurrence -> MatchResult Action

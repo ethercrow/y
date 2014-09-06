@@ -42,7 +42,7 @@ prop_take s i
 
 prop_drop s i
     = i >= 0 ==>
-      S.fromString (drop i s) == S.drop (S.Size (fromIntegral i)) (S.fromString s)
+      S.fromString (drop i s) == S.drop (fromIntegral i) (S.fromString s)
 
 prop_length s
     = length s == fromIntegral (S.fromSize (S.length (S.fromString s)))

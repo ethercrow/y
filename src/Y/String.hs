@@ -80,6 +80,9 @@ instance NFData Line where
     rnf (ShortLine t _) = rnf t
     rnf (LongLine chunks _) = rnf chunks
 
+instance NFData Size where
+    rnf (Size i) = rnf i
+
 lineToLazyText :: Line -> TL.Text
 lineToLazyText (ShortLine t _) = t
 lineToLazyText (LongLine chunks _) = foldr mappend "" chunks
@@ -255,8 +258,8 @@ lineSplitAtEvery i l
     = pure l
 lineSplitAtEvery i l = pure (lineTake i l) <> lineSplitAtEvery i (lineDrop i l)
 
-drop :: Size -> YiString -> YiString
-drop (Size n) = snd . splitAt n 
+drop :: Int64 -> YiString -> YiString
+drop n = snd . splitAt n
 
 coordsOfPosition :: Position -> YiString -> (Int64, Int64)
 coordsOfPosition p s = coordsOfPositionWrappingToWidth p (fromSize (length s)) s

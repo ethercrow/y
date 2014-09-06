@@ -29,11 +29,7 @@ startVtyFrontend :: IO Frontend
 startVtyFrontend = do
     (inputEvent, pushInput) <- Sodium.sync Sodium.newEvent
     vty <- Vty.mkVty (def { Vty.vtime = Just 0
-<<<<<<< Updated upstream
                           , Vty.inputMap = vtyKeyTable})
-=======
-                          , Vty.inputMap = vtyKeyTable })
->>>>>>> Stashed changes
 
     let mainLoop outputEvent = do
             outputMVar <- newEmptyMVar
